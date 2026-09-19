@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Sparkles,
   BookOpen,
+  ListOrdered,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,6 +35,8 @@ import {
 import { FadeIn } from "./motion";
 import { ActivityPlayer } from "./ActivityPlayer";
 import { StoryActivity } from "./StoryActivity";
+import { StoryGamePlayer } from "./StoryGamePlayer";
+import { SequencingPlayer } from "./SequencingPlayer";
 import { VideoComingSoon } from "./VideoComingSoon";
 import { useApp } from "@/lib/store";
 import { syncPending } from "@/lib/sync";
@@ -46,6 +49,8 @@ import {
 } from "@/lib/activities-data";
 import { LANGUAGES } from "@/lib/i18n";
 import { recommend } from "@/lib/adaptive";
+import { STORY_GAMES, recommendedStories, type StoryGame } from "@/lib/story-games-data";
+import { SEQUENCING_ACTIVITIES, sequencingById, type SequencingActivity } from "@/lib/sequencing-data";
 import { toast } from "sonner";
 import type {
   ActivityCategory,
@@ -56,12 +61,17 @@ import type {
 
 type Tab = "home" | "activities" | "reminders" | "progress" | "profile";
 
+type Launched =
+  | { kind: "standard"; activity: ActivityTemplate }
+  | { kind: "video"; activity: ActivityTemplate }
+  | { kind: "storygame"; story: StoryGame }
+  | { kind: "sequencing"; activity: SequencingActivity };
+
 export function ElderView() {
   const profile = useApp((s) => s.profile);
   const attempts = useApp((s) => s.attempts);
   const [tab, setTab] = useState<Tab>("home");
-  const [launched, setLaunched] = useState<ActivityTemplate | null>(null);
-  const [mode, setMode] = useState<"standard" | "video">("standard");
+  const [launched, setLaunched] = useState<Launched | null>(null);
 
   const recommendation = recommend(attempts);
 
@@ -70,19 +80,22 @@ export function ElderView() {
   }, []);
 
   if (launched) {
-    if (launched.category === "story") {
-      return <StoryActivity activityId={launched.id} onExit={() => setLaunched(null)} />;
+    if (launched.kind === "storygame") {
+      return <StoryGamePlayer story={launched.story} onExit={() => setLaunched(null)} />;
     }
-    if (mode === "video") {
+    if (launched.kind === "sequencing") {
+      return <SequencingPlayer activity={launched.activity} onExit={() => setLaunched(null)} />;
+    }
+    if (launched.kind === "video") {
       return (
         <VideoComingSoon
-          activity={launched}
+          activity={launched.activity}
           onExit={() => setLaunched(null)}
-          onUseStandard={() => setMode("standard")}
+          onUseStandard={() => setLaunched({ kind: "standard", activity: launched.activity })}
         />
       );
     }
-    return <ActivityPlayer activity={launched} onExit={() => setLaunched(null)} />;
+    return <ActivityPlayer activity={launched.activity} onExit={() => setLaunched(null)} />;
   }
 
   const recActivity =
@@ -146,12 +159,25 @@ export function ElderView() {
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {recActivity.category === "story" ? (
+                        {recActivity.category === "sequencing" ? (
                           <Button
                             className="gap-1.5 bg-primary text-primary-foreground"
-                            onClick={() => { setLaunched(recActivity); setMode("standard"); }}
+                            onClick={() => {
+                              const seq = SEQUENCING_ACTIVITIES[0];
+                              if (seq) setLaunched({ kind: "sequencing", activity: seq });
+                            }}
                           >
-                            <BookOpen className="h-4 w-4" /> Read story
+                            <ListOrdered className="h-4 w-4" /> Watch the sequence
+                          </Button>
+                        ) : recActivity.category === "story" ? (
+                          <Button
+                            className="gap-1.5 bg-primary text-primary-foreground"
+                            onClick={() => {
+                              const sg = recommendedStories(profile?.regionState, profile?.interests)[0];
+                              if (sg) setLaunched({ kind: "storygame", story: sg });
+                            }}
+                          >
+                            <BookOpen className="h-4 w-4" /> Play story
                           </Button>
                         ) : (
                           <>
@@ -159,7 +185,7 @@ export function ElderView() {
                               <Button
                                 variant="outline"
                                 className="gap-1.5 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                                onClick={() => { setLaunched(recActivity); setMode("video"); }}
+                                onClick={() => setLaunched({ kind: "video", activity: recActivity })}
                               >
                                 <Video className="h-4 w-4" /> Personalized Video
                                 <Badge className="ml-1 bg-amber-200 px-1.5 py-0 text-[10px] text-amber-900">Soon</Badge>
@@ -167,7 +193,7 @@ export function ElderView() {
                             )}
                             <Button
                               className="gap-1.5 bg-primary text-primary-foreground"
-                              onClick={() => { setLaunched(recActivity); setMode("standard"); }}
+                              onClick={() => setLaunched({ kind: "standard", activity: recActivity })}
                             >
                               Start activity <ArrowRight className="h-4 w-4" />
                             </Button>
@@ -189,8 +215,13 @@ export function ElderView() {
             <div className="mt-6">
               <h2 className="mb-3 font-serif text-xl font-semibold text-foreground">Quick activities</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {ACTIVITIES.slice(0, 6).map((a) => (
-                  <ActivityCard key={a.id} activity={a} onStart={() => { setLaunched(a); setMode("standard"); }} onVideo={() => { setLaunched(a); setMode("video"); }} />
+                {ACTIVITIES.filter((a) => a.category !== "story").slice(0, 6).map((a) => (
+                  <ActivityCard
+                    key={a.id}
+                    activity={a}
+                    onStart={() => setLaunched({ kind: "standard", activity: a })}
+                    onVideo={() => setLaunched({ kind: "video", activity: a })}
+                  />
                 ))}
               </div>
             </div>
@@ -199,11 +230,48 @@ export function ElderView() {
 
         {tab === "activities" && (
           <FadeIn>
-            <h1 className="mb-1 font-serif text-2xl font-semibold text-foreground">Activities</h1>
-            <p className="mb-5 text-sm text-muted-foreground">Choose a cognitive activity. Some offer a personalized AI video.</p>
+            {/* ── Cognitive Activities ── */}
+            <div className="mb-2 flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-emerald-700" />
+              <h1 className="font-serif text-2xl font-semibold text-foreground">Cognitive Activities</h1>
+            </div>
+            <p className="mb-5 text-sm text-muted-foreground">
+              Visual memory activities — observe, then answer from memory.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {ACTIVITIES.map((a) => (
-                <ActivityCard key={a.id} activity={a} onStart={() => { setLaunched(a); setMode("standard"); }} onVideo={() => { setLaunched(a); setMode("video"); }} />
+              {ACTIVITIES.filter((a) => a.category !== "story").map((a) => {
+                const isSeq = a.category === "sequencing";
+                const seq = isSeq ? SEQUENCING_ACTIVITIES[0] : null;
+                return (
+                  <ActivityCard
+                    key={a.id}
+                    activity={a}
+                    onStart={() => {
+                      if (isSeq && seq) setLaunched({ kind: "sequencing", activity: seq });
+                      else setLaunched({ kind: "standard", activity: a });
+                    }}
+                    onVideo={() => setLaunched({ kind: "video", activity: a })}
+                  />
+                );
+              })}
+            </div>
+
+            {/* ── Story Games ── */}
+            <div className="mt-10 mb-2 flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-teal-700" />
+              <h2 className="font-serif text-2xl font-semibold text-foreground">Story Games</h2>
+            </div>
+            <p className="mb-5 text-sm text-muted-foreground">
+              Short visual stories designed around familiar everyday experiences.
+              Watch the story, then answer memory questions.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recommendedStories(profile?.regionState, profile?.interests).map((sg) => (
+                <StoryGameCard
+                  key={sg.id}
+                  story={sg}
+                  onPlay={() => setLaunched({ kind: "storygame", story: sg })}
+                />
               ))}
             </div>
           </FadeIn>
@@ -255,6 +323,49 @@ function ActivityCard({
               <span className="ml-0.5 rounded bg-amber-200 px-1 text-[9px] font-semibold text-amber-900">SOON</span>
             </Button>
           )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function StoryGameCard({
+  story,
+  onPlay,
+}: {
+  story: StoryGame;
+  onPlay: () => void;
+}) {
+  const scene = SCENE_META[story.scene];
+  return (
+    <Card className="flex h-full flex-col overflow-hidden p-0">
+      <div className="relative">
+        { }
+        <img src={scene.image} alt={story.title} className="h-36 w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+        <Badge className="absolute left-2 top-2 bg-teal-600/90 text-white backdrop-blur">
+          <BookOpen className="mr-1 h-3 w-3" /> Story · {story.scenes.length} scenes
+        </Badge>
+        <span className="absolute right-2 top-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur">
+          {story.difficulty}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="font-medium text-foreground">{story.title}</h3>
+        <p className="mt-0.5 flex-1 text-sm text-muted-foreground">{story.description}</p>
+        {story.interests.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {story.interests.slice(0, 3).map((i) => (
+              <span key={i} className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700">
+                {i}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="mt-3">
+          <Button size="sm" className="gap-1 bg-primary text-primary-foreground" onClick={onPlay}>
+            <BookOpen className="h-3.5 w-3.5" /> Play story <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
     </Card>

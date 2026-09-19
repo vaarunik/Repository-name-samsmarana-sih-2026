@@ -2,16 +2,16 @@
 
 // SAMSMARANA — Hero scroll-reveal (adapted from 21st.dev pattern).
 //
-// Architecture borrowed from the 21st.dev `hero-scroll-video-pin-reveal`
-// (GSAP ScrollTrigger pin + clip-path circle reveal + SplitText word
-// reveal + staggered tag badges), but re-skinned for Samsmarana:
-//   - green + blue + warm white palette (no dark mountain aesthetic)
-//   - a realistic Samsmarana hero image instead of drone footage
-//   - Samsmarana copy and tags
-//   - no unrelated badge/play-icon imagery
-//   - respects prefers-reduced-motion (disables pin/scrub, shows content)
+// PERFORMANCE ARCHITECTURE (no more scroll jank):
+//   - GSAP ScrollTrigger + NATIVE browser scrolling only.
+//   - Lenis REMOVED — it fought native scroll and caused stutter.
+//   - Single timeline per section, proper cleanup on unmount.
+//   - Only GPU-friendly properties animated (transform, opacity, clip-path).
+//   - will-change scoped to animated elements only.
+//   - prefers-reduced-motion → no pin/scrub, content shown immediately.
 //
-// Dependencies: gsap, @studio-freight/lenis (optional smooth scroll).
+// Visual concept preserved: kinetic word reveal + staggered clip-path
+// tag badges + pinned clip-path circle image reveal.
 
 import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
@@ -31,12 +31,10 @@ export interface HeroScrollRevealProps {
   headingText?: React.ReactNode;
   tags?: TagItem[];
   subText?: string;
-  /** realistic image shown through the expanding reveal */
   imageSrc?: string;
   imageAlt?: string;
   bottomText?: React.ReactNode;
   className?: string;
-  /** cta buttons rendered over the intro section */
   cta?: React.ReactNode;
 }
 
@@ -84,14 +82,11 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // ── Reduced motion: show everything, no pin/scrub ────────────────
     if (prefersReduced) {
       if (imageBoxRef.current) {
         imageBoxRef.current.style.clipPath = "circle(150% at 50% 50%)";
       }
-      if (paraRef.current) {
-        gsap.set(paraRef.current, { opacity: 1 });
-      }
+      if (paraRef.current) paraRef.current.style.opacity = "1";
       tagRefs.current.forEach((t) => {
         if (t) {
           t.style.opacity = "1";
@@ -101,27 +96,7 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       return;
     }
 
-    // ── Optional Lenis smooth scroll (fail-safe) ─────────────────────
-    let lenis: { raf: (t: number) => void; destroy: () => void; on: (e: string, cb: () => void) => void } | null = null;
-    let lenisTicker: ((time: number) => void) | null = null;
-    import("@studio-freight/lenis")
-      .then(({ default: Lenis }) => {
-        try {
-          // @ts-expect-error lenis constructor options are runtime-checked
-          lenis = new Lenis({ smooth: true });
-          lenis!.on("scroll", ScrollTrigger.update);
-          lenisTicker = (time: number) => lenis!.raf(time * 1000);
-          gsap.ticker.add(lenisTicker);
-          gsap.ticker.lagSmoothing(0);
-        } catch {
-          lenis = null;
-        }
-      })
-      .catch(() => {
-        lenis = null;
-      });
-
-    // ── Word-split kinetic reveal (manual, no SplitText plugin needed) ──
+    // ── Word-split kinetic reveal (manual, no SplitText plugin) ──
     const words: HTMLElement[] = [];
     if (paraRef.current) {
       const text = paraRef.current.textContent ?? "";
@@ -141,85 +116,75 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       });
     }
 
-    if (words.length) {
-      gsap.set(words, { opacity: 0, rotate: 6, yPercent: 30 });
-    }
-
-    // ── Reveal timeline (headline + tags) ────────────────────────────
-    const revealTl = gsap.timeline({
-      scrollTrigger: {
-        trigger: benefitRef.current,
-        start: "top 70%",
-        end: "top -10%",
-        scrub: 1.5,
-      },
-    });
-
-    if (words.length) {
-      revealTl.to(words, {
-        stagger: 0.04,
-        opacity: 1,
-        rotate: 0,
-        yPercent: 0,
-        ease: "power1.inOut",
-      });
-    }
-
-    tagRefs.current.forEach((tagEl) => {
-      if (tagEl) {
-        revealTl.to(
-          tagEl,
-          {
-            duration: 1,
-            opacity: 1,
-            clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
-            ease: "circ.out",
-          },
-          ">-0.4"
-        );
+    const ctx = gsap.context(() => {
+      if (words.length) {
+        gsap.set(words, { opacity: 0, rotate: 6, yPercent: 30 });
       }
-    });
 
-    // ── Responsive clip-path circle reveal on the image ──────────────
-    const mm = gsap.matchMedia();
-
-    const setup = (startRadius: string, end: string) => {
-      gsap.set(imageBoxRef.current, { clipPath: `circle(${startRadius} at 50% 50%)` });
-      const tl = gsap.timeline({
+      // ── Reveal timeline (headline + tags) ──
+      const revealTl = gsap.timeline({
         scrollTrigger: {
-          trigger: wrapperRef.current,
-          start: "top top",
-          end,
-          scrub: 1.3,
-          pin: true,
-          pinSpacing: true,
-          anticipatePin: 1,
+          trigger: benefitRef.current,
+          start: "top 70%",
+          end: "top -10%",
+          scrub: 1.5,
         },
       });
-      tl.fromTo(
-        imageBoxRef.current,
-        { clipPath: `circle(${startRadius} at 50% 50%)` },
-        { clipPath: "circle(150% at 50% 50%)", ease: "none" }
-      );
-    };
 
-    mm.add("(max-width: 639.9px)", () => setup("18%", "+=1500"));
-    mm.add("(min-width: 640px) and (max-width: 1023.9px)", () => setup("14%", "+=2000"));
-    mm.add("(min-width: 1024px)", () => setup("10%", "+=2200"));
+      if (words.length) {
+        revealTl.to(words, {
+          stagger: 0.04,
+          opacity: 1,
+          rotate: 0,
+          yPercent: 0,
+          ease: "power1.inOut",
+        });
+      }
+
+      tagRefs.current.forEach((tagEl) => {
+        if (tagEl) {
+          revealTl.to(
+            tagEl,
+            {
+              duration: 1,
+              opacity: 1,
+              clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
+              ease: "circ.out",
+            },
+            ">-0.4"
+          );
+        }
+      });
+
+      // ── Responsive clip-path circle reveal (native scroll, no Lenis) ──
+      const mm = gsap.matchMedia();
+      const setup = (startRadius: string, end: string) => {
+        gsap.set(imageBoxRef.current, { clipPath: `circle(${startRadius} at 50% 50%)` });
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: wrapperRef.current,
+            start: "top top",
+            end,
+            scrub: 1.3,
+            pin: true,
+            pinSpacing: true,
+            anticipatePin: 1,
+          },
+        });
+        tl.fromTo(
+          imageBoxRef.current,
+          { clipPath: `circle(${startRadius} at 50% 50%)` },
+          { clipPath: "circle(150% at 50% 50%)", ease: "none" }
+        );
+      };
+
+      mm.add("(max-width: 639.9px)", () => setup("18%", "+=1500"));
+      mm.add("(min-width: 640px) and (max-width: 1023.9px)", () => setup("14%", "+=2000"));
+      mm.add("(min-width: 1024px)", () => setup("10%", "+=2200"));
+    });
 
     return () => {
-      // revert word split
-      if (paraRef.current && words.length) {
-        const text = words.map((w) => w.textContent).join(" ");
-        paraRef.current.textContent = text;
-      }
-      revealTl.kill();
-      mm.revert();
-      ScrollTrigger.getAll().forEach((t) => t.kill());
-      if (lenis && lenisTicker) {
-        gsap.ticker.remove(lenisTicker);
-        lenis.destroy();
-      }
+      ctx.revert(); // reverts word split + kills all timelines/triggers in context
     };
   }, []);
 
@@ -228,7 +193,7 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       className={`w-full bg-gradient-to-b from-emerald-50 via-background to-teal-50 text-foreground font-sans overflow-x-hidden ${className}`}
     >
       {/* ── Section 1: Intro text ──────────────────────────────────── */}
-      <section className="flex min-h-[80vh] w-full items-center justify-center px-4 py-12 text-center sm:px-8">
+      <section className="flex min-h-[70vh] w-full items-center justify-center px-4 py-12 text-center sm:px-8">
         <div className="max-w-3xl">
           <p className="text-[clamp(1.6rem,4vw,3.5rem)] font-bold leading-tight tracking-tight text-foreground">
             {topText}
@@ -240,7 +205,6 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       {/* ── Section 2: Benefit & headline + pinned image reveal ────── */}
       <section ref={benefitRef} className="relative w-full pb-16 md:pb-20">
         <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 md:py-24">
-          {/* Kinetic headline */}
           <div className="mb-8 w-full sm:mb-12 md:mb-14">
             <p
               ref={paraRef}
@@ -250,7 +214,6 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
             </p>
           </div>
 
-          {/* Staggered clip-path tag badges */}
           <div className="mx-auto my-4 mb-8 flex max-w-4xl flex-wrap justify-center gap-2.5 sm:gap-4 sm:mb-14">
             {tags.map((tag, idx) => (
               <div
@@ -283,19 +246,13 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
             ref={wrapperRef}
             className="relative flex h-screen w-full items-center justify-center overflow-hidden"
           >
-            {/* soft gradient underlay behind the expanding circle */}
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100" />
-
             <div
               ref={imageBoxRef}
               className="relative flex h-full w-full items-center justify-center overflow-hidden will-change-[clip-path]"
             >
               { }
-              <img
-                src={imageSrc}
-                alt={imageAlt}
-                className="h-full w-full object-cover"
-              />
+              <img src={imageSrc} alt={imageAlt} className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/30 via-transparent to-transparent" />
             </div>
           </div>
@@ -303,7 +260,7 @@ export const HeroScrollReveal: React.FC<HeroScrollRevealProps> = ({
       </section>
 
       {/* ── Section 3: Outro text ──────────────────────────────────── */}
-      <section className="flex min-h-[60vh] w-full items-center justify-center px-4 py-12 text-center sm:px-8">
+      <section className="flex min-h-[50vh] w-full items-center justify-center px-4 py-12 text-center sm:px-8">
         <p className="text-[clamp(1.6rem,4vw,3.5rem)] font-bold leading-tight tracking-tight text-foreground">
           {bottomText}
         </p>

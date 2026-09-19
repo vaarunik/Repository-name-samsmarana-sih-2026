@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { HeroScrollReveal } from "@/components/ui/hero-scroll-video-pin-reveal";
 import { Logo } from "./Logo";
 import { Waves } from "./Waves";
+import { BrandedHero } from "./BrandedHero";
 import { FadeIn, AnimatedGroup, TextEffect, HoverLift } from "./motion";
 import { useApp } from "@/lib/store";
 import { CATEGORY_META } from "@/lib/activities-data";
@@ -44,7 +45,13 @@ export function LandingView() {
 
   return (
     <main className="flex-1">
-      {/* ── Hero (GSAP scroll-reveal, adapted from 21st.dev) ─────────── */}
+      {/* ── Branded opening hero (staggered entrance, balanced) ─────── */}
+      <BrandedHero
+        onGetStarted={() => setView("onboarding")}
+        onExplore={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
+      />
+
+      {/* ── GSAP scroll-reveal (kinetic headline + pinned image) ────── */}
       <HeroScrollReveal
         topText={
           <>
@@ -54,7 +61,7 @@ export function LandingView() {
         }
         headingText={
           <>
-            Memories deserve <br /> to be nurtured.
+            Familiar scenes, <br /> gently revealed.
           </>
         }
         tags={[
@@ -63,7 +70,7 @@ export function LandingView() {
           { text: "Offline-first", background: "oklch(0.93 0.03 165)", color: "#1b3a2a" },
           { text: "Elder-friendly", background: "oklch(0.34 0.05 240)", color: "#ffffff" },
         ]}
-        subText="Samsmarana creates personalized, culturally familiar activities that help older adults stay engaged, connected and curious."
+        subText="Every activity draws on the elder's language, region, interests and recent performance — adapting gently, never abruptly."
         imageSrc="/images/hero/hero.png"
         imageAlt="An elder's hands holding a tablet showing a family photograph, beside a brass lamp and a cup of tea"
         bottomText={
@@ -71,26 +78,6 @@ export function LandingView() {
             Where every scroll feels
             <br />
             intentional
-          </>
-        }
-        cta={
-          <>
-            <Button
-              size="lg"
-              className="h-14 gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
-              onClick={() => setView("onboarding")}
-            >
-              Get Started
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-14 gap-2 rounded-2xl text-base font-semibold"
-              onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
-            >
-              Explore Samsmarana
-            </Button>
           </>
         }
       />
