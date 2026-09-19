@@ -149,27 +149,61 @@ export function OnboardingView() {
           <Card className="p-6 sm:p-8">
             <h2 className="font-serif text-2xl font-semibold text-foreground">Choose a language</h2>
             <p className="mt-1 text-sm text-muted-foreground">Region and language are independent. You can change this later.</p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  onClick={() => setData({ ...data, language: l.code as LanguageCode })}
-                  className={`flex items-center justify-between rounded-xl border p-4 text-left transition-colors ${
-                    data.language === l.code
-                      ? "border-emerald-400 bg-emerald-50"
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                >
-                  <div>
-                    <div className="font-medium text-foreground">{l.native}</div>
-                    <div className="text-xs text-muted-foreground">{l.label}</div>
-                  </div>
-                  {data.language === l.code && <Check className="h-5 w-5 text-emerald-600" />}
-                </button>
-              ))}
+            <div className="mt-5 space-y-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Common languages
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {LANGUAGES.filter((l) => l.group === "common").map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => setData({ ...data, language: l.code as LanguageCode })}
+                      className={`flex items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+                        data.language === l.code
+                          ? "border-emerald-400 bg-emerald-50"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium text-foreground">{l.native}</div>
+                        <div className="text-xs text-muted-foreground">{l.name}</div>
+                      </div>
+                      {data.language === l.code && <Check className="h-5 w-5 text-emerald-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                  North Eastern Region languages
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {LANGUAGES.filter((l) => l.group === "ner").map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => setData({ ...data, language: l.code as LanguageCode })}
+                      className={`flex items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+                        data.language === l.code
+                          ? "border-emerald-400 bg-emerald-50"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium text-foreground">{l.native}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {l.name}
+                          {!l.voiceLikely && <span className="ml-1 text-amber-600">· voice limited</span>}
+                        </div>
+                      </div>
+                      {data.language === l.code && <Check className="h-5 w-5 text-emerald-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              English is suggested based on your device — but the choice is always yours.
+              Language and region are independent. English is suggested based on your device — but the choice is always yours.
             </p>
           </Card>
         )}
@@ -323,7 +357,7 @@ export function OnboardingView() {
               <dl className="mt-5 grid gap-3 sm:grid-cols-2">
                 <Confirm label="Name" value={data.name} />
                 <Confirm label="Age" value={String(data.age)} />
-                <Confirm label="Language" value={LANGUAGES.find((l) => l.code === data.language)?.label ?? data.language} />
+                <Confirm label="Language" value={LANGUAGES.find((l) => l.code === data.language)?.name ?? data.language} />
                 <Confirm label="Region" value={`${data.regionState}, ${data.regionGroup}`} />
                 <Confirm label="Interests" value={data.interests.join(", ") || "—"} />
                 <Confirm label="Activities" value={data.preferredActivities.map((a) => CATEGORY_META[a].label).join(", ") || "—"} />

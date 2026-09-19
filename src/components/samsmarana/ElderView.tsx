@@ -16,6 +16,7 @@ import {
   LogOut,
   CheckCircle2,
   Sparkles,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,7 +33,8 @@ import {
 } from "@/components/ui/select";
 import { FadeIn } from "./motion";
 import { ActivityPlayer } from "./ActivityPlayer";
-import { VideoActivity } from "./VideoActivity";
+import { StoryActivity } from "./StoryActivity";
+import { VideoComingSoon } from "./VideoComingSoon";
 import { useApp } from "@/lib/store";
 import { syncPending } from "@/lib/sync";
 import {
@@ -40,6 +42,7 @@ import {
   CATEGORY_META,
   REGION_GROUPS,
   INTERESTS,
+  SCENE_META,
 } from "@/lib/activities-data";
 import { LANGUAGES } from "@/lib/i18n";
 import { recommend } from "@/lib/adaptive";
@@ -67,9 +70,12 @@ export function ElderView() {
   }, []);
 
   if (launched) {
+    if (launched.category === "story") {
+      return <StoryActivity activityId={launched.id} onExit={() => setLaunched(null)} />;
+    }
     if (mode === "video") {
       return (
-        <VideoActivity
+        <VideoComingSoon
           activity={launched}
           onExit={() => setLaunched(null)}
           onUseStandard={() => setMode("standard")}
@@ -140,21 +146,33 @@ export function ElderView() {
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {recActivity.video && (
+                        {recActivity.category === "story" ? (
                           <Button
                             className="gap-1.5 bg-primary text-primary-foreground"
-                            onClick={() => { setLaunched(recActivity); setMode("video"); }}
+                            onClick={() => { setLaunched(recActivity); setMode("standard"); }}
                           >
-                            <Video className="h-4 w-4" /> Generate Personalized Video
+                            <BookOpen className="h-4 w-4" /> Read story
                           </Button>
+                        ) : (
+                          <>
+                            {recActivity.video && (
+                              <Button
+                                variant="outline"
+                                className="gap-1.5 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                onClick={() => { setLaunched(recActivity); setMode("video"); }}
+                              >
+                                <Video className="h-4 w-4" /> Personalized Video
+                                <Badge className="ml-1 bg-amber-200 px-1.5 py-0 text-[10px] text-amber-900">Soon</Badge>
+                              </Button>
+                            )}
+                            <Button
+                              className="gap-1.5 bg-primary text-primary-foreground"
+                              onClick={() => { setLaunched(recActivity); setMode("standard"); }}
+                            >
+                              Start activity <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
-                        <Button
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => { setLaunched(recActivity); setMode("standard"); }}
-                        >
-                          Start activity <ArrowRight className="h-4 w-4" />
-                        </Button>
                       </div>
                     </Card>
                   </div>
@@ -209,23 +227,35 @@ function ActivityCard({
   onVideo: () => void;
 }) {
   const meta = CATEGORY_META[activity.category];
+  const scene = SCENE_META[activity.scene];
+  const isStory = activity.category === "story";
   return (
-    <Card className="flex h-full flex-col p-4">
-      <div className="flex items-center justify-between">
-        <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">{meta.label}</Badge>
-        <span className="text-xs text-muted-foreground">Level {activity.difficulty}</span>
+    <Card className="flex h-full flex-col overflow-hidden p-0">
+      <div className="relative">
+        { }
+        <img src={scene.image} alt={scene.label} className="h-32 w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        <Badge className="absolute left-2 top-2 bg-white/85 text-emerald-800 backdrop-blur">
+          {meta.label}
+        </Badge>
+        <span className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-white backdrop-blur">
+          Level {activity.difficulty}
+        </span>
       </div>
-      <h3 className="mt-2 font-medium text-foreground">{activity.title}</h3>
-      <p className="text-sm text-muted-foreground">{activity.description}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button size="sm" className="gap-1 bg-primary text-primary-foreground" onClick={onStart}>
-          Start <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
-        {activity.video && (
-          <Button size="sm" variant="outline" className="gap-1" onClick={onVideo}>
-            <Video className="h-3.5 w-3.5" /> Video
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="font-medium text-foreground">{activity.title}</h3>
+        <p className="mt-0.5 flex-1 text-sm text-muted-foreground">{activity.description}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" className="gap-1 bg-primary text-primary-foreground" onClick={onStart}>
+            {isStory ? "Read" : "Start"} <ArrowRight className="h-3.5 w-3.5" />
           </Button>
-        )}
+          {activity.video && (
+            <Button size="sm" variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={onVideo}>
+              <Video className="h-3.5 w-3.5" /> Video
+              <span className="ml-0.5 rounded bg-amber-200 px-1 text-[9px] font-semibold text-amber-900">SOON</span>
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -450,7 +480,7 @@ function ProfileTab() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {LANGUAGES.map((l) => (
-                  <SelectItem key={l.code} value={l.code}>{l.native} ({l.label})</SelectItem>
+                  <SelectItem key={l.code} value={l.code}>{l.native} ({l.name})</SelectItem>
                 ))}
               </SelectContent>
             </Select>

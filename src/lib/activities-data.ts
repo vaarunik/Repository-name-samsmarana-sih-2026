@@ -106,21 +106,26 @@ export const CATEGORY_META: Record<
     blurb: "Recall where things were placed.",
     icon: "Compass",
   },
+  story: {
+    label: "Story",
+    blurb: "Follow a short visual story and recall what happened.",
+    icon: "BookOpen",
+  },
 };
 
-export const SCENE_META: Record<SceneKey, { label: string; setting: string }> = {
-  garden: { label: "Garden", setting: "a calm home garden with familiar plants and flowers" },
-  market: { label: "Vegetable Market", setting: "a small local vegetable market stall" },
-  shop: { label: "Local Shop", setting: "a familiar neighbourhood shop" },
-  cooking: { label: "Cooking", setting: "a home kitchen preparing a familiar meal" },
-  tea: { label: "Tea Preparation", setting: "tea being prepared in a familiar kitchen" },
-  train: { label: "Train Journey", setting: "a gentle train journey through countryside" },
-  nature: { label: "Nature", setting: "a peaceful natural landscape" },
-  birds: { label: "Birds", setting: "familiar birds visiting a garden in the morning" },
-  home: { label: "Home", setting: "a familiar home living room with everyday objects" },
-  community: { label: "Community", setting: "a quiet community courtyard" },
-  river: { label: "River", setting: "a calm river bank at dawn" },
-  festival: { label: "Festival", setting: "a modest, warm festival preparation at home" },
+export const SCENE_META: Record<SceneKey, { label: string; setting: string; image: string }> = {
+  garden: { label: "Garden", setting: "a calm home garden with familiar plants and flowers", image: "/images/activities/garden.png" },
+  market: { label: "Vegetable Market", setting: "a small local vegetable market stall", image: "/images/activities/market.png" },
+  shop: { label: "Local Shop", setting: "a familiar neighbourhood shop", image: "/images/activities/shop.png" },
+  cooking: { label: "Cooking", setting: "a home kitchen preparing a familiar meal", image: "/images/activities/cooking.png" },
+  tea: { label: "Tea Preparation", setting: "tea being prepared in a familiar kitchen", image: "/images/activities/tea.png" },
+  train: { label: "Train Journey", setting: "a gentle train journey through countryside", image: "/images/activities/train.png" },
+  nature: { label: "Nature", setting: "a peaceful natural landscape", image: "/images/activities/nature.png" },
+  birds: { label: "Birds", setting: "familiar birds visiting a garden in the morning", image: "/images/activities/birds.png" },
+  home: { label: "Home", setting: "a familiar home living room with everyday objects", image: "/images/activities/home.png" },
+  community: { label: "Community", setting: "a quiet community courtyard", image: "/images/activities/community.png" },
+  river: { label: "River", setting: "a calm river bank at dawn", image: "/images/activities/river.png" },
+  festival: { label: "Festival", setting: "a modest, warm festival preparation at home", image: "/images/activities/festival.png" },
 };
 
 export interface ActivityTemplate {
@@ -269,6 +274,17 @@ export const ACTIVITIES: ActivityTemplate[] = [
     standard: true,
     video: true,
     icon: "Brain",
+  },
+  {
+    id: "act-story-tea",
+    category: "story",
+    title: "Lakshmi's Morning Tea",
+    description: "Follow a short visual story about a morning tea, then recall what happened.",
+    scene: "tea",
+    difficulty: 2,
+    standard: true,
+    video: false,
+    icon: "BookOpen",
   },
 ];
 

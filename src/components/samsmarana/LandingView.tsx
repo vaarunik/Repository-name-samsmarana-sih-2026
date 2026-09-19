@@ -89,57 +89,38 @@ export function LandingView() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Elder &amp; Caregiver modes
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 5 languages · NER support
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 10 languages incl. NER
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Real AI video via Gemini &amp; Veo
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Voice-guided visual activities
               </span>
             </div>
           </div>
 
-          {/* Hero visual: composed, no random portrait */}
+          {/* Hero visual: realistic meaningful photograph (no staring portrait) */}
           <FadeIn delay={0.2} y={24} className="relative">
-            <div className="relative mx-auto max-w-md">
+            <div className="relative mx-auto max-w-lg">
               <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-emerald-200/40 via-teal-200/30 to-sky-200/30 blur-2xl" />
               <Card className="relative overflow-hidden rounded-[1.75rem] border-border/60 shadow-lift">
-                <div className="relative bg-gradient-to-br from-emerald-50 to-sky-50 p-6">
-                  <div className="flex items-center justify-between">
-                    <Logo size={32} withWordmark={false} />
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/70 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Today
-                    </span>
-                  </div>
-                  <p className="mt-4 font-serif text-2xl font-semibold text-foreground">
-                    Good morning, Lakshmi
+                { }
+                <img
+                  src="/images/hero/hero.png"
+                  alt="An elder's hands holding a tablet showing a family photograph, beside a brass lamp and a cup of tea"
+                  className="aspect-[4/3] w-full object-cover"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
+                  <p className="font-serif text-xl font-semibold drop-shadow">
+                    Familiar memories, gently nurtured
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    What can I do now?
+                  <p className="text-sm text-white/85 drop-shadow">
+                    A calm companion for everyday cognitive engagement.
                   </p>
-
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    {[
-                      { icon: Eye, label: "Recognition", tone: "from-emerald-500 to-teal-500" },
-                      { icon: Brain, label: "Recall", tone: "from-teal-500 to-sky-500" },
-                      { icon: Hash, label: "Counting", tone: "from-sky-500 to-emerald-500" },
-                      { icon: Video, label: "AI Video", tone: "from-emerald-600 to-teal-600" },
-                    ].map((c) => (
-                      <div
-                        key={c.label}
-                        className="flex items-center gap-2.5 rounded-xl border border-white/60 bg-white/70 p-3 backdrop-blur"
-                      >
-                        <span className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${c.tone} text-white`}>
-                          <c.icon className="h-4.5 w-4.5" />
-                        </span>
-                        <span className="text-sm font-medium text-foreground">{c.label}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex items-center justify-between border-t border-border/60 bg-background px-6 py-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Synced
                   </span>
-                  <span>5-day streak · 92% accuracy</span>
+                  <span>Voice · Visual · Offline-first</span>
                 </div>
               </Card>
             </div>
@@ -264,28 +245,32 @@ export function LandingView() {
         </FadeIn>
       </Section>
 
-      {/* ── AI Video ─────────────────────────────────────── */}
-      <Section id="video" eyebrow="AI-powered cognitive video" title="Real video, generated with Gemini & Veo">
+      {/* ── AI Video (Coming Soon) ───────────────────────── */}
+      <Section id="video" eyebrow="AI-powered cognitive video" title="Personalized video activities, coming soon">
         <div className="grid gap-6 lg:grid-cols-2">
           <FadeIn>
             <Card className="h-full overflow-hidden p-0">
-              <div className="relative aspect-video bg-gradient-to-br from-emerald-900 to-teal-800">
-                <Waves className="absolute inset-0 h-full w-full opacity-30" />
-                <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative aspect-video">
+                { }
+                <img src="/images/activities/market.png" alt="Preview of a realistic personalized video scene" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
+                <Waves className="absolute inset-x-0 bottom-0 h-20 w-full opacity-30 text-white" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-emerald-700 shadow-lift">
                     <Video className="h-7 w-7" />
                   </div>
+                  <Badge className="mt-4 bg-amber-400 px-3 py-1 text-sm font-semibold text-amber-950">Coming Soon</Badge>
                 </div>
                 <div className="absolute bottom-3 left-3 rounded-md bg-black/40 px-2 py-1 text-xs text-white backdrop-blur">
                   Veo · 8s · 16:9
                 </div>
               </div>
               <div className="p-5">
-                <h3 className="font-medium text-foreground">On-demand personalized video</h3>
+                <h3 className="font-medium text-foreground">Personalized, realistic memory scenes</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  A calm, realistic 8-second scene is generated from the elder&apos;s
-                  language, region, interests and the activity — then paired with
-                  cognitive questions (recognition, recall, counting, attention, spatial).
+                  Samsmarana will soon generate calm, realistic 8-second scenes tailored to each
+                  elder&apos;s language, region, interests and the activity — then pair them with
+                  cognitive questions. Built on Google&apos;s Gemini &amp; Veo.
                 </p>
               </div>
             </Card>
@@ -294,13 +279,13 @@ export function LandingView() {
             <Card className="h-full p-6">
               <ShieldCheck className="h-6 w-6 text-emerald-700" />
               <h3 className="mt-3 font-serif text-xl font-semibold text-foreground">
-                Server-side, key-safe, gracefully degrading
+                Designed to be private and reliable
               </h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                 {[
-                  "The Gemini API key is read server-side and never exposed to the browser.",
-                  "Real MP4 video is generated — no placeholders, SVGs or fake success.",
-                  "If the key is missing or generation fails, a clean fallback lets the user continue with a standard activity.",
+                  "The Gemini API key will be read server-side and never exposed to the browser.",
+                  "Real MP4 video — no placeholders, SVGs or fake success states.",
+                  "If generation ever fails, a clean fallback lets the user continue with a standard visual activity.",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
@@ -308,6 +293,9 @@ export function LandingView() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                This feature is under development. The visual cognitive activities below work fully today.
+              </p>
             </Card>
           </FadeIn>
         </div>

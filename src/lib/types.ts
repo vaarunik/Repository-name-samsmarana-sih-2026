@@ -2,7 +2,9 @@
 
 export type Role = "ELDER" | "CAREGIVER" | "FAMILY";
 
-export type LanguageCode = "en" | "kn" | "hi" | "ta" | "te";
+// Re-exported from i18n so the language set stays in one place.
+export type { LanguageCode } from "./i18n";
+import type { LanguageCode } from "./i18n";
 
 export type ActivityCategory =
   | "recognition"
@@ -13,7 +15,8 @@ export type ActivityCategory =
   | "sequencing"
   | "language"
   | "concentration"
-  | "spatial";
+  | "spatial"
+  | "story";
 
 export type ViewKey =
   | "landing"

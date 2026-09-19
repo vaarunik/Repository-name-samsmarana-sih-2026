@@ -1,16 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRight,
-  Check,
-  X,
-  RotateCw,
-  Clock,
-  Trophy,
-  Eye,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Check, X, RotateCw, Trophy, BookOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,64 +11,66 @@ import { ListenButton, VoiceSpeedControl } from "./VoiceControls";
 import { useVoiceSpeed } from "@/lib/voice";
 import { useApp } from "@/lib/store";
 import { recordAttempt } from "@/lib/sync";
-import { buildQuestions, sceneObjects } from "@/lib/questions";
-import { SCENE_META } from "@/lib/activities-data";
-import type { ActivityTemplate } from "@/lib/activities-data";
-import type { AttemptRecord, Question } from "@/lib/types";
+import { storyById } from "@/lib/story-data";
+import { activityById } from "@/lib/activities-data";
+import type { AttemptRecord } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Phase = "intro" | "memorize" | "questions" | "result";
+type Phase = "scene" | "questions" | "result";
 
-export function ActivityPlayer({
-  activity,
+export function StoryActivity({
+  activityId,
   onExit,
 }: {
-  activity: ActivityTemplate;
+  activityId: string;
   onExit: () => void;
 }) {
+  const activity = activityById(activityId);
+  const story = storyById("story-tea");
   const profile = useApp((s) => s.profile);
   const [speed, setSpeed] = useVoiceSpeed();
-  const [phase, setPhase] = useState<Phase>("intro");
-  const questions = useMemo<Question[]>(
-    () => buildQuestions(activity.scene, activity.category, activity.difficulty),
-    [activity]
-  );
+  const [phase, setPhase] = useState<Phase>("scene");
+  const [sceneIdx, setSceneIdx] = useState(0);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const startRef = useRef<number>(0);
-  const qStartRef = useRef<number>(0);
+  const startRef = useRef(0);
+  const qStartRef = useRef(0);
   const [responseMs, setResponseMs] = useState(0);
 
-  const objects = useMemo(() => sceneObjects(activity.scene), [activity]);
-  const scene = SCENE_META[activity.scene];
   const lang = (profile?.language ?? "en") as any;
 
-  // memorize countdown
-  const [count, setCount] = useState(8);
-  useEffect(() => {
-    if (phase !== "memorize") return;
-    setCount(8);
-    const t = setInterval(() => {
-      setCount((c) => {
-        if (c <= 1) {
-          clearInterval(t);
-          setPhase("questions");
-          startRef.current = Date.now();
-          qStartRef.current = Date.now();
-          return 0;
-        }
-        return c - 1;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [phase]);
+  if (!story || !activity) {
+    return (
+      <main className="flex-1">
+        <div className="mx-auto max-w-2xl px-4 py-6">
+          <BackButton label="Back to activities" onClick={onExit} />
+          <Card className="mt-4 p-6 text-center text-muted-foreground">
+            Story not found.
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
+  const scene = story.scenes[sceneIdx];
+  const questions = story.questions;
+  const isLastScene = sceneIdx === story.scenes.length - 1;
+
+  function nextScene() {
+    if (isLastScene) {
+      setPhase("questions");
+      startRef.current = Date.now();
+      qStartRef.current = Date.now();
+    } else {
+      setSceneIdx(sceneIdx + 1);
+    }
+  }
 
   function answer(idx: number) {
     const next = [...answers];
     next[qi] = idx;
     setAnswers(next);
-    const rt = Date.now() - qStartRef.current;
-    setResponseMs((r) => r + rt);
+    setResponseMs((r) => r + (Date.now() - qStartRef.current));
     setTimeout(() => {
       if (qi < questions.length - 1) {
         setQi(qi + 1);
@@ -94,16 +87,15 @@ export function ActivityPlayer({
       0
     );
     const accuracy = questions.length ? correct / questions.length : 0;
-    const totalRt = Date.now() - startRef.current;
     const attempt: AttemptRecord = {
       id: crypto.randomUUID(),
       profileId: profile?.id ?? "anon",
-      activityId: activity.id,
-      category: activity.category,
-      title: activity.title,
+      activityId,
+      category: "story",
+      title: story.title,
       difficulty: activity.difficulty,
       accuracy,
-      responseMs: totalRt,
+      responseMs: Date.now() - startRef.current,
       completed: true,
       skipped: false,
       score: Math.round(accuracy * 100),
@@ -115,96 +107,54 @@ export function ActivityPlayer({
     setPhase("result");
   }
 
-  const introInstruction = `Activity: ${activity.title}. ${activity.description} Look carefully at the picture, then answer the questions.`;
-  const memorizeInstruction = `Look carefully at this ${scene.label.toLowerCase()} scene. Try to remember the objects, colours and where things are.`;
-  const qInstruction = questions[qi]?.prompt ?? "";
-
-  // ── Intro ──────────────────────────────────────────────
-  if (phase === "intro") {
+  // ── Scene phase ───────────────────────────────────────
+  if (phase === "scene") {
+    const sceneSpeech = `Scene ${sceneIdx + 1}. ${scene.narration}`;
     return (
       <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
-        <Card className="overflow-hidden p-0">
-          <div className="relative">
-            { }
-            <img
-              src={scene.image}
-              alt={scene.label}
-              className="aspect-video w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-            <div className="absolute bottom-0 left-0 p-6 text-white">
-              <Badge className="bg-white/25 text-white backdrop-blur">{scene.label}</Badge>
-              <h2 className="mt-2 font-serif text-3xl font-semibold drop-shadow">{activity.title}</h2>
-              <p className="text-white/90 drop-shadow">{activity.description}</p>
-            </div>
-          </div>
-          <div className="p-6">
-            <p className="text-base text-foreground">{introInstruction}</p>
-            <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5">
-                Difficulty {activity.difficulty}/5
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5">
-                <Clock className="h-3.5 w-3.5" /> ~2 minutes
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
-                <Eye className="h-3.5 w-3.5" /> Visual activity
-              </span>
-            </div>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="h-14 min-w-[140px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
-                onClick={() => setPhase("memorize")}
-              >
-                Start activity
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-              <ListenButton text={introInstruction} lang={lang} speed={speed} />
-            </div>
-          </div>
-        </Card>
-      </Shell>
-    );
-  }
-
-  // ── Memorize ──────────────────────────────────────────
-  if (phase === "memorize") {
-    return (
-      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">Remember this scene</h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700">
-            <Clock className="h-4 w-4" /> {count}s
-          </span>
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-emerald-700" />
+            <h2 className="font-serif text-xl font-semibold text-foreground">{story.title}</h2>
+          </div>
+          <Badge className="bg-emerald-100 text-emerald-700">
+            Scene {sceneIdx + 1} of {story.scenes.length}
+          </Badge>
         </div>
-        <Card className="overflow-hidden p-0">
-          { }
-          <img src={scene.image} alt={scene.label} className="aspect-video w-full object-cover" />
-        </Card>
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-          <p className="text-sm text-foreground">{memorizeInstruction}</p>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Progress value={((sceneIdx + 1) / story.scenes.length) * 100} className="mb-4 h-2.5" />
+
+        <motion.div
+          key={sceneIdx}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="overflow-hidden p-0">
+            { }
+            <img src={scene.image} alt={scene.caption} className="aspect-video w-full object-cover" />
+            <div className="p-6">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">{scene.caption}</p>
+              <p className="mt-2 font-serif text-2xl leading-relaxed text-foreground">{scene.narration}</p>
+            </div>
+          </Card>
+        </motion.div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
           <Button
             size="lg"
             className="h-14 min-w-[140px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
-            onClick={() => {
-              setPhase("questions");
-              startRef.current = Date.now();
-              qStartRef.current = Date.now();
-            }}
+            onClick={nextScene}
           >
-            I&apos;m ready
+            {isLastScene ? "Answer questions" : "Next scene"}
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <ListenButton text={memorizeInstruction} lang={lang} speed={speed} />
+          <ListenButton text={sceneSpeech} lang={lang} speed={speed} />
         </div>
       </Shell>
     );
   }
 
-  // ── Questions ─────────────────────────────────────────
+  // ── Questions phase ───────────────────────────────────
   if (phase === "questions") {
     const q = questions[qi];
     const answered = answers[qi];
@@ -215,24 +165,28 @@ export function ActivityPlayer({
           <span className="text-base font-medium text-foreground">
             Question {qi + 1} of {questions.length}
           </span>
-          <span className="capitalize">{activity.category.replace("_", " ")}</span>
+          <span className="inline-flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4" /> {story.title}
+          </span>
         </div>
         <Progress value={((qi + 1) / questions.length) * 100} className="mb-4 h-2.5" />
 
-        {/* Small scene reminder alongside the question */}
-        <Card className="mb-4 overflow-hidden p-0">
-          { }
-          <img src={scene.image} alt={scene.label} className="aspect-[16/7] w-full object-cover" />
-        </Card>
+        {/* Reminder thumbnail of the last scene */}
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          {story.scenes.map((s, i) => (
+            <div key={i} className="overflow-hidden rounded-lg border border-border/60">
+              { }
+              <img src={s.image} alt={s.caption} className="aspect-video w-full object-cover" />
+            </div>
+          ))}
+        </div>
 
         <Card className="p-6">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="font-serif text-2xl font-semibold leading-snug text-foreground text-balance">
-              {q.prompt}
-            </h2>
-          </div>
+          <h2 className="font-serif text-2xl font-semibold leading-snug text-foreground text-balance">
+            {q.prompt}
+          </h2>
           <div className="mt-3">
-            <ListenButton text={qInstruction} lang={lang} speed={speed} />
+            <ListenButton text={q.prompt} lang={lang} speed={speed} />
           </div>
           <div className="mt-5 grid gap-3">
             {q.options.map((opt, i) => {
@@ -283,7 +237,6 @@ export function ActivityPlayer({
   const headline =
     accuracy >= 0.8 ? "Well done!" : accuracy >= 0.5 ? "Nice effort." : "That's okay. Let's try another one.";
   const sub = `${correct} of ${questions.length} correct.`;
-  const resultSpeech = `${headline} ${sub}`;
   return (
     <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
       <Card className="p-8 text-center">
@@ -302,9 +255,6 @@ export function ActivityPlayer({
           <Stat label="Time" value={`${Math.round(responseMs / 1000)}s`} />
           <Stat label="Score" value={String(Math.round(accuracy * 100))} />
         </div>
-        <div className="mt-4 flex justify-center">
-          <ListenButton text={resultSpeech} lang={lang} speed={speed} />
-        </div>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Button
             variant="outline"
@@ -313,17 +263,14 @@ export function ActivityPlayer({
             onClick={() => {
               setAnswers([]);
               setQi(0);
+              setSceneIdx(0);
               setResponseMs(0);
-              setPhase("intro");
+              setPhase("scene");
             }}
           >
-            <RotateCw className="h-4 w-4" /> Try again
+            <RotateCw className="h-4 w-4" /> Read again
           </Button>
-          <Button
-            size="lg"
-            className="h-12 gap-1.5 bg-primary text-primary-foreground"
-            onClick={onExit}
-          >
+          <Button size="lg" className="h-12 gap-1.5 bg-primary text-primary-foreground" onClick={onExit}>
             <Trophy className="h-4 w-4" /> Done
           </Button>
         </div>
