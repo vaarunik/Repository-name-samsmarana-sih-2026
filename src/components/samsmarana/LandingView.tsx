@@ -124,6 +124,50 @@ export function LandingView() {
         </AnimatedGroup>
       </Section>
 
+      {/* ── Story Games Preview ──────────────────────────── */}
+      <Section id="stories" eyebrow="Story Games" title="Short visual stories that feel like a film">
+        <FadeIn>
+          <p className="mb-6 max-w-2xl text-muted-foreground">
+            Each story unfolds across 5–7 distinct scenes — every scene has its own
+            realistic visual with subtle motion. Watch the story, then answer memory
+            questions from what you remember.
+          </p>
+        </FadeIn>
+        <FadeIn delay={0.1}>
+          <Card className="overflow-hidden p-0">
+            <div className="grid grid-cols-3 gap-0.5">
+              {[
+                { img: "/images/story/market/s1.png", label: "Arriving" },
+                { img: "/images/story/market/s3.png", label: "Choosing" },
+                { img: "/images/story/market/s7.png", label: "Leaving" },
+              ].map((s, i) => (
+                <div key={i} className="relative overflow-hidden">
+                  { }
+                  <img
+                    src={s.img}
+                    alt={`Story scene: ${s.label}`}
+                    className="aspect-video w-full object-cover transition-transform duration-700 hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <span className="absolute bottom-2 left-2 rounded-full bg-white/85 px-2.5 py-1 text-xs font-medium text-emerald-800 backdrop-blur">
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between p-5">
+              <div>
+                <h3 className="font-serif text-lg font-semibold text-foreground">
+                  A Morning at the Vegetable Market
+                </h3>
+                <p className="text-sm text-muted-foreground">7 scenes · Moderate · regionally adaptable</p>
+              </div>
+              <Badge className="bg-teal-100 text-teal-700">Story Game</Badge>
+            </div>
+          </Card>
+        </FadeIn>
+      </Section>
+
       {/* ── Regional ─────────────────────────────────────── */}
       <Section id="regional" eyebrow="Regional & cultural personalization" title="Familiarity, not tourism">
         <div className="grid gap-6 lg:grid-cols-2">

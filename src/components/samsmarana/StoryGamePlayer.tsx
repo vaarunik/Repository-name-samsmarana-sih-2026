@@ -33,6 +33,14 @@ import {
   TreePine,
   Home,
   Users,
+  Store,
+  Utensils,
+  Scissors,
+  DoorOpen,
+  Sofa,
+  Moon,
+  MessageCircle,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,7 +58,8 @@ import { motion, AnimatePresence } from "framer-motion";
 const ACCENTS: Record<string, React.ComponentType<{ className?: string }>> = {
   Footprints, Eye, Hand, Scale, Coins, ShoppingBag, Droplet, Flame, Leaf,
   CupSoda, Heart, Sunrise, Lamp, Image: ImageIcon, Apple, Newspaper, Flower2,
-  Bird, TreePine, Home, Users,
+  Bird, TreePine, Home, Users, Store, Utensils, Scissors, DoorOpen, Sofa,
+  Moon, MessageCircle, Package, Plate: Utensils, Armchair: Sofa,
 };
 
 type Phase = "scene" | "transition" | "questions" | "feedback" | "complete";

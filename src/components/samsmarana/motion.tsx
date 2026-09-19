@@ -1,19 +1,19 @@
 "use client";
 
 // Motion-primitives-style helpers (subtle, calm, accessible).
-// Uses mount-based entrance animations so content is ALWAYS visible
-// (no reliance on IntersectionObserver firing), and respects
-// prefers-reduced-motion via <MotionConfig reducedMotion="user">.
+// Uses whileInView for scroll-triggered reveals. A safety fallback
+// ensures content is never stuck invisible (e.g. in screenshot tools
+// where IntersectionObserver may not fire).
 
-import { motion, type Variants } from "framer-motion";
-import type { ReactNode } from "react";
+import { motion, useInView, type Variants } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function FadeIn({
   children,
   delay = 0,
-  y = 14,
+  y = 16,
   className,
 }: {
   children: ReactNode;
@@ -21,11 +21,23 @@ export function FadeIn({
   y?: number;
   className?: string;
 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const [safe, setSafe] = useState(false);
+  // Safety: if not in view after 2s, show anyway
+  useEffect(() => {
+    if (!inView) {
+      const t = setTimeout(() => setSafe(true), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [inView]);
+  const show = inView || safe;
   return (
     <motion.div
+      ref={ref}
       className={className}
       initial={{ opacity: 0, y }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={show ? { opacity: 1, y: 0 } : { opacity: 0, y }}
       transition={{ duration: 0.6, ease, delay }}
     >
       {children}
@@ -42,6 +54,17 @@ export function AnimatedGroup({
   className?: string;
   stagger?: number;
 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const [safe, setSafe] = useState(false);
+  useEffect(() => {
+    if (!inView) {
+      const t = setTimeout(() => setSafe(true), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [inView]);
+  const show = inView || safe;
+
   const container: Variants = {
     hidden: {},
     show: { transition: { staggerChildren: stagger } },
@@ -52,10 +75,11 @@ export function AnimatedGroup({
   };
   return (
     <motion.div
+      ref={ref}
       className={className}
       variants={container}
       initial="hidden"
-      animate="show"
+      animate={show ? "show" : "hidden"}
     >
       {Array.isArray(children)
         ? children.map((c, i) => (
