@@ -171,15 +171,11 @@ export function StoryActivity({
         </div>
         <Progress value={((qi + 1) / questions.length) * 100} className="mb-4 h-2.5" />
 
-        {/* Reminder thumbnail of the last scene */}
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          {story.scenes.map((s, i) => (
-            <div key={i} className="overflow-hidden rounded-lg border border-border/60">
-              { }
-              <img src={s.image} alt={s.caption} className="aspect-video w-full object-cover" />
-            </div>
-          ))}
-        </div>
+        {/* Story scenes are HIDDEN during questions — the elder answers from memory */}
+        <Card className="mb-4 bg-emerald-50/60 p-4 text-center text-sm text-emerald-800">
+          <BookOpen className="mx-auto mb-1 h-5 w-5" />
+          The story is hidden. Answer from what you remember.
+        </Card>
 
         <Card className="p-6">
           <h2 className="font-serif text-2xl font-semibold leading-snug text-foreground text-balance">

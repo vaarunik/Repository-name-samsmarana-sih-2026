@@ -117,20 +117,6 @@ export function SpeakAnswerButton({
       {listening && !transcript && (
         <p className="text-sm text-muted-foreground">Listening… speak clearly.</p>
       )}
-      {/* hidden trigger for parent to consume transcript */}
-      <input
-        type="hidden"
-        value={transcript}
-        onChange={(e) => onTranscript(e.target.value)}
-      />
-      <button
-        type="button"
-        className="sr-only"
-        tabIndex={-1}
-        onClick={() => onTranscript(transcript)}
-      >
-        submit
-      </button>
     </div>
   );
 }

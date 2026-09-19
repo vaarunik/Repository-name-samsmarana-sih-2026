@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { HeroScrollReveal } from "@/components/ui/hero-scroll-video-pin-reveal";
 import { Logo } from "./Logo";
 import { Waves } from "./Waves";
 import { FadeIn, AnimatedGroup, TextEffect, HoverLift } from "./motion";
@@ -43,90 +44,56 @@ export function LandingView() {
 
   return (
     <main className="flex-1">
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-aurora" aria-hidden />
-        <div className="absolute inset-x-0 bottom-0">
-          <Waves className="h-48 w-full opacity-70" />
-        </div>
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-2 lg:pb-32 lg:pt-24">
-          <div>
-            <Badge
-              variant="secondary"
-              className="mb-5 gap-1.5 border-emerald-200 bg-emerald-50 text-emerald-700"
+      {/* ── Hero (GSAP scroll-reveal, adapted from 21st.dev) ─────────── */}
+      <HeroScrollReveal
+        topText={
+          <>
+            A little memory.
+            <br />A little connection.
+          </>
+        }
+        headingText={
+          <>
+            Memories deserve <br /> to be nurtured.
+          </>
+        }
+        tags={[
+          { text: "Personalized", background: "oklch(0.46 0.09 162)", color: "#ffffff" },
+          { text: "Culturally familiar", background: "oklch(0.60 0.07 190)", color: "#ffffff" },
+          { text: "Offline-first", background: "oklch(0.93 0.03 165)", color: "#1b3a2a" },
+          { text: "Elder-friendly", background: "oklch(0.34 0.05 240)", color: "#ffffff" },
+        ]}
+        subText="Samsmarana creates personalized, culturally familiar activities that help older adults stay engaged, connected and curious."
+        imageSrc="/images/hero/hero.png"
+        imageAlt="An elder's hands holding a tablet showing a family photograph, beside a brass lamp and a cup of tea"
+        bottomText={
+          <>
+            Where every scroll feels
+            <br />
+            intentional
+          </>
+        }
+        cta={
+          <>
+            <Button
+              size="lg"
+              className="h-14 gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
+              onClick={() => setView("onboarding")}
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              Personalized · Culturally familiar · Offline-first
-            </Badge>
-            <h1 className="font-serif text-4xl font-semibold leading-[1.1] tracking-tight text-foreground text-balance sm:text-5xl lg:text-6xl">
-              <TextEffect text="Memories deserve to be nurtured." />
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
-              <TextEffect
-                text="Samsmarana creates personalized, culturally familiar activities that help older adults stay engaged, connected and curious."
-                delay={0.4}
-              />
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="gap-2 bg-primary text-primary-foreground"
-                onClick={() => setView("onboarding")}
-              >
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
-              >
-                Explore Samsmarana
-              </Button>
-            </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Elder &amp; Caregiver modes
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> 10 languages incl. NER
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Voice-guided visual activities
-              </span>
-            </div>
-          </div>
-
-          {/* Hero visual: realistic meaningful photograph (no staring portrait) */}
-          <FadeIn delay={0.2} y={24} className="relative">
-            <div className="relative mx-auto max-w-lg">
-              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-emerald-200/40 via-teal-200/30 to-sky-200/30 blur-2xl" />
-              <Card className="relative overflow-hidden rounded-[1.75rem] border-border/60 shadow-lift">
-                { }
-                <img
-                  src="/images/hero/hero.png"
-                  alt="An elder's hands holding a tablet showing a family photograph, beside a brass lamp and a cup of tea"
-                  className="aspect-[4/3] w-full object-cover"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
-                  <p className="font-serif text-xl font-semibold drop-shadow">
-                    Familiar memories, gently nurtured
-                  </p>
-                  <p className="text-sm text-white/85 drop-shadow">
-                    A calm companion for everyday cognitive engagement.
-                  </p>
-                </div>
-                <div className="flex items-center justify-between border-t border-border/60 bg-background px-6 py-3 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Synced
-                  </span>
-                  <span>Voice · Visual · Offline-first</span>
-                </div>
-              </Card>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
+              Get Started
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 gap-2 rounded-2xl text-base font-semibold"
+              onClick={() => document.getElementById("how")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              Explore Samsmarana
+            </Button>
+          </>
+        }
+      />
 
       {/* ── How it works ─────────────────────────────────── */}
       <Section id="how" eyebrow="How Samsmarana works" title="A calm, guided path to staying engaged">

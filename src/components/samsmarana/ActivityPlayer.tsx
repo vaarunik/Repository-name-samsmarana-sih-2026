@@ -10,13 +10,15 @@ import {
   Trophy,
   Eye,
   Sparkles,
+  EyeOff,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BackButton } from "./BackButton";
-import { ListenButton, VoiceSpeedControl } from "./VoiceControls";
+import { ListenButton, VoiceSpeedControl, SpeakAnswerButton } from "./VoiceControls";
 import { useVoiceSpeed } from "@/lib/voice";
 import { useApp } from "@/lib/store";
 import { recordAttempt } from "@/lib/sync";
@@ -26,7 +28,24 @@ import type { ActivityTemplate } from "@/lib/activities-data";
 import type { AttemptRecord, Question } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Phase = "intro" | "memorize" | "questions" | "result";
+/**
+ * Activity state machine — enforces the cognitive memory flow:
+ *
+ *   intro → observe → remember → question → answering → feedback → complete
+ *
+ * CRITICAL: the scene image is visible ONLY during `observe`. It is fully
+ * hidden (removed from the DOM) during `remember`, `question`, `answering`
+ * and `feedback`, so the elder must rely on memory — not a still-visible
+ * reference. Voice instructions accompany each phase.
+ */
+type Phase = "intro" | "observe" | "remember" | "question" | "answering" | "feedback" | "complete";
+
+const PHASE_STEPS: { key: Phase; label: string }[] = [
+  { key: "observe", label: "Observe" },
+  { key: "remember", label: "Remember" },
+  { key: "question", label: "Answer" },
+  { key: "feedback", label: "Feedback" },
+];
 
 export function ActivityPlayer({
   activity,
@@ -48,49 +67,58 @@ export function ActivityPlayer({
   const qStartRef = useRef<number>(0);
   const [responseMs, setResponseMs] = useState(0);
 
-  const objects = useMemo(() => sceneObjects(activity.scene), [activity]);
-  const scene = SCENE_META[activity.scene];
-  const lang = (profile?.language ?? "en") as any;
-
-  // memorize countdown
-  const [count, setCount] = useState(8);
+  // observe phase: gentle dot timer (8s), no stressful countdown
+  const [observeDots, setObserveDots] = useState(0);
   useEffect(() => {
-    if (phase !== "memorize") return;
-    setCount(8);
+    if (phase !== "observe") return;
+    setObserveDots(0);
+    const total = 8;
+    let i = 0;
     const t = setInterval(() => {
-      setCount((c) => {
-        if (c <= 1) {
-          clearInterval(t);
-          setPhase("questions");
-          startRef.current = Date.now();
-          qStartRef.current = Date.now();
-          return 0;
-        }
-        return c - 1;
-      });
+      i++;
+      setObserveDots(i);
+      if (i >= total) {
+        clearInterval(t);
+        setPhase("remember");
+      }
     }, 1000);
     return () => clearInterval(t);
   }, [phase]);
 
-  function answer(idx: number) {
+  // remember phase: short 1.2s transition, then question
+  useEffect(() => {
+    if (phase !== "remember") return;
+    const t = setTimeout(() => {
+      setPhase("question");
+      qStartRef.current = Date.now();
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  function pickAnswer(idx: number) {
+    if (phase !== "question" && phase !== "answering") return;
     const next = [...answers];
     next[qi] = idx;
     setAnswers(next);
-    const rt = Date.now() - qStartRef.current;
-    setResponseMs((r) => r + rt);
-    setTimeout(() => {
-      if (qi < questions.length - 1) {
-        setQi(qi + 1);
-        qStartRef.current = Date.now();
-      } else {
-        finish(next);
-      }
-    }, 900);
+    setResponseMs((r) => r + (Date.now() - qStartRef.current));
+    setPhase("answering");
+    // brief pause to show selection, then feedback
+    setTimeout(() => setPhase("feedback"), 500);
   }
 
-  async function finish(finalAnswers: (number | null)[]) {
+  function nextQuestion() {
+    if (qi < questions.length - 1) {
+      setQi(qi + 1);
+      setPhase("question");
+      qStartRef.current = Date.now();
+    } else {
+      finish();
+    }
+  }
+
+  async function finish() {
     const correct = questions.reduce(
-      (s, q, i) => s + (finalAnswers[i] === q.answerIndex ? 1 : 0),
+      (s, q, i) => s + (answers[i] === q.answerIndex ? 1 : 0),
       0
     );
     const accuracy = questions.length ? correct / questions.length : 0;
@@ -112,14 +140,20 @@ export function ActivityPlayer({
       createdAt: new Date().toISOString(),
     };
     await recordAttempt(attempt);
-    setPhase("result");
+    setPhase("complete");
   }
 
-  const introInstruction = `Activity: ${activity.title}. ${activity.description} Look carefully at the picture, then answer the questions.`;
-  const memorizeInstruction = `Look carefully at this ${scene.label.toLowerCase()} scene. Try to remember the objects, colours and where things are.`;
-  const qInstruction = questions[qi]?.prompt ?? "";
+  const objects = useMemo(() => sceneObjects(activity.scene), [activity]);
+  const scene = SCENE_META[activity.scene];
+  const lang = (profile?.language ?? "en") as never;
+  const currentQ = questions[qi];
 
-  // ── Intro ──────────────────────────────────────────────
+  // Voice instructions per phase
+  const introInstruction = `Activity: ${activity.title}. ${activity.description} Look carefully at the picture, then answer the questions.`;
+  const observeInstruction = `Look carefully at this ${scene.label.toLowerCase()} scene. Try to remember the objects, colours and where things are. Take your time.`;
+  const questionInstruction = currentQ?.prompt ?? "";
+
+  // ── INTRO ──────────────────────────────────────────────
   if (phase === "intro") {
     return (
       <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
@@ -148,14 +182,20 @@ export function ActivityPlayer({
                 <Clock className="h-3.5 w-3.5" /> ~2 minutes
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
-                <Eye className="h-3.5 w-3.5" /> Visual activity
+                <Eye className="h-3.5 w-3.5" /> Visual memory activity
               </span>
             </div>
+            <p className="mt-4 rounded-lg bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
+              You&apos;ll see the scene, then it will be hidden. Answer from memory.
+            </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button
                 size="lg"
-                className="h-14 min-w-[140px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
-                onClick={() => setPhase("memorize")}
+                className="h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
+                onClick={() => {
+                  setPhase("observe");
+                  startRef.current = Date.now();
+                }}
               >
                 Start activity
                 <ArrowRight className="h-5 w-5" />
@@ -168,49 +208,74 @@ export function ActivityPlayer({
     );
   }
 
-  // ── Memorize ──────────────────────────────────────────
-  if (phase === "memorize") {
+  // ── OBSERVE (image visible) ───────────────────────────
+  if (phase === "observe") {
     return (
       <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+        <PhaseIndicator current="observe" />
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">Remember this scene</h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700">
-            <Clock className="h-4 w-4" /> {count}s
-          </span>
+          <h2 className="font-serif text-xl font-semibold text-foreground">Look carefully</h2>
+          {/* gentle dot timer — no stressful countdown */}
+          <div className="flex items-center gap-1.5" aria-label="observation timer">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <span
+                key={i}
+                className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  i < observeDots ? "bg-emerald-500" : "bg-emerald-200"
+                }`}
+              />
+            ))}
+          </div>
         </div>
         <Card className="overflow-hidden p-0">
           { }
           <img src={scene.image} alt={scene.label} className="aspect-video w-full object-cover" />
         </Card>
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-          <p className="text-sm text-foreground">{memorizeInstruction}</p>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <p className="mt-3 text-center text-sm text-muted-foreground">Take your time…</p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <ListenButton text={observeInstruction} lang={lang} speed={speed} />
           <Button
             size="lg"
-            className="h-14 min-w-[140px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
-            onClick={() => {
-              setPhase("questions");
-              startRef.current = Date.now();
-              qStartRef.current = Date.now();
-            }}
+            className="h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
+            onClick={() => setPhase("remember")}
           >
-            I&apos;m ready
+            I&apos;ve seen it
             <ArrowRight className="h-5 w-5" />
           </Button>
-          <ListenButton text={memorizeInstruction} lang={lang} speed={speed} />
         </div>
       </Shell>
     );
   }
 
-  // ── Questions ─────────────────────────────────────────
-  if (phase === "questions") {
-    const q = questions[qi];
-    const answered = answers[qi];
-    const reveal = answered != null;
+  // ── REMEMBER (image HIDDEN — transition) ──────────────
+  if (phase === "remember") {
     return (
       <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+        <PhaseIndicator current="remember" />
+        <Card className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+          <motion.span
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+          >
+            <EyeOff className="h-8 w-8" />
+          </motion.span>
+          <h2 className="font-serif text-2xl font-semibold text-foreground">
+            Now, remember what you saw
+          </h2>
+          <p className="text-sm text-muted-foreground">The scene is hidden. Answer from memory.</p>
+        </Card>
+      </Shell>
+    );
+  }
+
+  // ── QUESTION / ANSWERING (image HIDDEN) ───────────────
+  if (phase === "question" || phase === "answering") {
+    const answered = answers[qi];
+    const reveal = phase === "answering" && answered != null;
+    return (
+      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+        <PhaseIndicator current="question" />
         <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
           <span className="text-base font-medium text-foreground">
             Question {qi + 1} of {questions.length}
@@ -219,30 +284,23 @@ export function ActivityPlayer({
         </div>
         <Progress value={((qi + 1) / questions.length) * 100} className="mb-4 h-2.5" />
 
-        {/* Small scene reminder alongside the question */}
-        <Card className="mb-4 overflow-hidden p-0">
-          { }
-          <img src={scene.image} alt={scene.label} className="aspect-[16/7] w-full object-cover" />
-        </Card>
-
+        {/* NO scene image here — the elder must answer from memory */}
         <Card className="p-6">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="font-serif text-2xl font-semibold leading-snug text-foreground text-balance">
-              {q.prompt}
-            </h2>
-          </div>
+          <h2 className="font-serif text-2xl font-semibold leading-snug text-foreground text-balance">
+            {currentQ.prompt}
+          </h2>
           <div className="mt-3">
-            <ListenButton text={qInstruction} lang={lang} speed={speed} />
+            <ListenButton text={questionInstruction} lang={lang} speed={speed} />
           </div>
           <div className="mt-5 grid gap-3">
-            {q.options.map((opt, i) => {
-              const isAnswer = i === q.answerIndex;
+            {currentQ.options.map((opt, i) => {
+              const isAnswer = i === currentQ.answerIndex;
               const isPicked = answered === i;
               return (
                 <button
                   key={i}
                   disabled={reveal}
-                  onClick={() => answer(i)}
+                  onClick={() => pickAnswer(i)}
                   className={`flex min-h-[56px] items-center justify-between rounded-2xl border-2 px-5 py-4 text-left text-lg font-medium transition-all ${
                     reveal && isAnswer
                       ? "border-emerald-500 bg-emerald-50 text-emerald-800"
@@ -258,23 +316,63 @@ export function ActivityPlayer({
               );
             })}
           </div>
-          <AnimatePresence>
-            {reveal && (
-              <motion.p
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 rounded-xl bg-muted/60 p-4 text-base text-foreground"
-              >
-                {q.explanation}
-              </motion.p>
-            )}
-          </AnimatePresence>
+
+          {/* Voice input (graceful fallback handled inside the component) */}
+          <div className="mt-5">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Voice input isn&apos;t available on this device? You can select an answer above.
+            </p>
+            <SpeakAnswerButton lang={lang} onTranscript={() => { /* selection-based; voice is assistive */ }} />
+          </div>
         </Card>
       </Shell>
     );
   }
 
-  // ── Result ────────────────────────────────────────────
+  // ── FEEDBACK (image still HIDDEN) ─────────────────────
+  if (phase === "feedback") {
+    const correct = answers[qi] === currentQ.answerIndex;
+    return (
+      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+        <PhaseIndicator current="feedback" />
+        <Card className="p-6 text-center">
+          <motion.span
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 180, damping: 16 }}
+            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
+              correct ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {correct ? <Sparkles className="h-8 w-8" /> : <Check className="h-8 w-8" />}
+          </motion.span>
+          <h2 className="mt-4 font-serif text-2xl font-semibold text-foreground">
+            {correct ? "Well done!" : "That's okay. Let's try another one."}
+          </h2>
+          <p className="mt-2 rounded-xl bg-muted/60 p-4 text-base text-foreground">
+            {currentQ.explanation}
+          </p>
+          <div className="mt-5 flex justify-center">
+            <ListenButton
+              text={`${correct ? "Well done!" : "That's okay."} ${currentQ.explanation}`}
+              lang={lang}
+              speed={speed}
+            />
+          </div>
+          <Button
+            size="lg"
+            className="mt-5 h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
+            onClick={nextQuestion}
+          >
+            {qi < questions.length - 1 ? "Next question" : "See results"}
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+        </Card>
+      </Shell>
+    );
+  }
+
+  // ── COMPLETE ──────────────────────────────────────────
   const correct = questions.reduce(
     (s, q, i) => s + (answers[i] === q.answerIndex ? 1 : 0),
     0
@@ -283,7 +381,6 @@ export function ActivityPlayer({
   const headline =
     accuracy >= 0.8 ? "Well done!" : accuracy >= 0.5 ? "Nice effort." : "That's okay. Let's try another one.";
   const sub = `${correct} of ${questions.length} correct.`;
-  const resultSpeech = `${headline} ${sub}`;
   return (
     <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
       <Card className="p-8 text-center">
@@ -293,7 +390,7 @@ export function ActivityPlayer({
           transition={{ type: "spring", stiffness: 180, damping: 16 }}
           className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
         >
-          <Sparkles className="h-8 w-8" />
+          <Trophy className="h-8 w-8" />
         </motion.span>
         <h2 className="mt-4 font-serif text-3xl font-semibold text-foreground">{headline}</h2>
         <p className="mt-1 text-muted-foreground">{sub}</p>
@@ -303,7 +400,7 @@ export function ActivityPlayer({
           <Stat label="Score" value={String(Math.round(accuracy * 100))} />
         </div>
         <div className="mt-4 flex justify-center">
-          <ListenButton text={resultSpeech} lang={lang} speed={speed} />
+          <ListenButton text={`${headline} ${sub}`} lang={lang} speed={speed} />
         </div>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Button
@@ -329,6 +426,38 @@ export function ActivityPlayer({
         </div>
       </Card>
     </Shell>
+  );
+}
+
+function PhaseIndicator({ current }: { current: Phase }) {
+  const order: Phase[] = ["observe", "remember", "question", "feedback"];
+  const idx = order.indexOf(current);
+  return (
+    <div className="mb-4 flex items-center justify-center gap-2" aria-label="activity phase">
+      {PHASE_STEPS.map((s, i) => {
+        const active = i === idx;
+        const done = i < idx;
+        return (
+          <div key={s.key} className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : done
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {done && <Check className="h-3 w-3" />}
+              {s.label}
+            </div>
+            {i < PHASE_STEPS.length - 1 && (
+              <span className={`h-0.5 w-4 ${done ? "bg-emerald-300" : "bg-border"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
