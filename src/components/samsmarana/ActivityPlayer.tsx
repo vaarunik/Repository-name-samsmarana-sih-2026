@@ -65,7 +65,15 @@ export function ActivityPlayer({
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const startRef = useRef<number>(0);
   const qStartRef = useRef<number>(0);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [responseMs, setResponseMs] = useState(0);
+
+  // cleanup any pending feedback timer on unmount
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, []);
 
   // observe phase: gentle dot timer (8s), no stressful countdown
   const [observeDots, setObserveDots] = useState(0);
@@ -102,8 +110,9 @@ export function ActivityPlayer({
     setAnswers(next);
     setResponseMs((r) => r + (Date.now() - qStartRef.current));
     setPhase("answering");
-    // brief pause to show selection, then feedback
-    setTimeout(() => setPhase("feedback"), 500);
+    // brief pause to show selection, then feedback (cleaned up on unmount)
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setPhase("feedback"), 500);
   }
 
   function nextQuestion() {

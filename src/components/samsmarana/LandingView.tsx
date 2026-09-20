@@ -243,32 +243,32 @@ export function LandingView() {
         </FadeIn>
       </Section>
 
-      {/* ── AI Video (Gemini + Veo) ──────────────────────── */}
-      <Section id="video" eyebrow="AI-powered cognitive video" title="Personalized video activities, powered by Gemini & Veo">
+      {/* ── AI Video (Coming Soon) ─────────────────────── */}
+      <Section id="video" eyebrow="AI-powered cognitive video" title="Personalized memory videos, coming soon">
         <div className="grid gap-6 lg:grid-cols-2">
           <FadeIn>
             <Card className="h-full overflow-hidden p-0">
               <div className="relative aspect-video">
                 { }
-                <img src="/images/activities/market.png" alt="Preview of a realistic personalized video scene" className="h-full w-full object-cover" />
+                <img src="/images/activities/market.png" alt="Preview of a personalized memory video scene" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10" />
                 <Waves className="absolute inset-x-0 bottom-0 h-20 w-full opacity-30 text-white" />
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-emerald-700 shadow-lift">
                     <Video className="h-7 w-7" />
                   </div>
-                  <Badge className="mt-4 bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">Live · Veo</Badge>
+                  <Badge className="mt-4 bg-amber-400 px-3 py-1 text-sm font-semibold text-amber-950">Coming Soon</Badge>
                 </div>
                 <div className="absolute bottom-3 left-3 rounded-md bg-black/40 px-2 py-1 text-xs text-white backdrop-blur">
-                  Veo · 8s · 16:9
+                  Personalized memory video
                 </div>
               </div>
               <div className="p-5">
-                <h3 className="font-medium text-foreground">Personalized, realistic memory scenes</h3>
+                <h3 className="font-medium text-foreground">Personalized Memory Videos</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Samsmarana generates calm, realistic 8-second scenes tailored to each
-                  elder&apos;s language, region, interests and the activity — then pairs them with
-                  cognitive questions. Built on Google&apos;s Gemini &amp; Veo.
+                  AI-generated personalized videos designed to support memory recall
+                  and cognitive engagement — tailored to each elder&apos;s interests,
+                  language and region.
                 </p>
               </div>
             </Card>
@@ -277,13 +277,13 @@ export function LandingView() {
             <Card className="h-full p-6">
               <ShieldCheck className="h-6 w-6 text-emerald-700" />
               <h3 className="mt-3 font-serif text-xl font-semibold text-foreground">
-                Private and reliable by design
+                Designed for gentle, reliable engagement
               </h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                 {[
-                  "The Gemini API key is read server-side and never exposed to the browser.",
-                  "Real MP4 video — no placeholders, SVGs or fake success states.",
-                  "If generation ever fails, a clean fallback lets the user continue with a standard visual activity.",
+                  "Calm, realistic scenes tailored to familiar everyday experiences.",
+                  "Paired with cognitive questions to support memory recall.",
+                  "Built to complement the visual activities that work today.",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
@@ -291,8 +291,8 @@ export function LandingView() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                Video generation requires a supported region for the Gemini API. If unavailable, the visual cognitive activity still works fully.
+              <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                This feature is coming soon. The visual cognitive activities work fully today.
               </p>
             </Card>
           </FadeIn>

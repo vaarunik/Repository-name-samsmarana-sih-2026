@@ -35,9 +35,17 @@ export function StoryActivity({
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const startRef = useRef(0);
   const qStartRef = useRef(0);
+  const answerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [responseMs, setResponseMs] = useState(0);
 
   const lang = (profile?.language ?? "en") as any;
+
+  // cleanup pending answer timer on unmount
+  useEffect(() => {
+    return () => {
+      if (answerTimer.current) clearTimeout(answerTimer.current);
+    };
+  }, []);
 
   if (!story || !activity) {
     return (
@@ -71,7 +79,8 @@ export function StoryActivity({
     next[qi] = idx;
     setAnswers(next);
     setResponseMs((r) => r + (Date.now() - qStartRef.current));
-    setTimeout(() => {
+    if (answerTimer.current) clearTimeout(answerTimer.current);
+    answerTimer.current = setTimeout(() => {
       if (qi < questions.length - 1) {
         setQi(qi + 1);
         qStartRef.current = Date.now();

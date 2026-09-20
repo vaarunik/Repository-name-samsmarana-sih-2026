@@ -1,23 +1,21 @@
 "use client";
 
-import { ArrowRight, Sparkles, Clock, PlayCircle } from "lucide-react";
+import { ArrowRight, Sparkles, Lock, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "./BackButton";
-import { Waves } from "./Waves";
 import { useApp } from "@/lib/store";
 import { SCENE_META } from "@/lib/activities-data";
 import type { ActivityTemplate } from "@/lib/activities-data";
 
 /**
- * Personalized Video Activities — COMING SOON.
+ * Personalized Memory Videos — COMING SOON.
  *
- * Per the master spec: the previous (broken) Gemini/Veo generation UI is
- * DISABLED. There is no fake generation, no "Video generation unavailable"
- * spinner, no "Try Again" loop. Instead this screen presents the feature as
- * a clearly-labelled upcoming capability with a realistic visual preview,
- * and immediately offers the working visual cognitive activity below.
+ * The real Veo generation infrastructure (src/lib/gemini.ts, /api/video/*)
+ * is kept intact but deliberately not triggered from the UI. This screen
+ * presents the feature as intentionally planned — no spinners, no errors,
+ * no "unavailable" messaging, no API calls.
  */
 export function VideoComingSoon({
   activity,
@@ -41,17 +39,16 @@ export function VideoComingSoon({
             <Sparkles className="mr-1 h-3 w-3" /> Coming Soon
           </Badge>
           <h1 className="mt-2 font-serif text-3xl font-semibold text-foreground">
-            Personalized Video Activities
+            Personalized Memory Videos
           </h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            Samsmarana will soon create personalized, realistic memory activities using
-            AI-generated video scenes tailored to each elder&apos;s interests, language and
-            region — built on Google&apos;s Gemini &amp; Veo. For now, please enjoy the visual
-            cognitive activity below.
+            AI-generated personalized videos designed to support memory recall
+            and cognitive engagement — tailored to each elder&apos;s interests,
+            language and region.
           </p>
         </div>
 
-        {/* Beautiful realistic preview with a "Coming Soon" overlay */}
+        {/* Calm locked preview — intentional, not broken */}
         <Card className="mt-5 overflow-hidden p-0">
           <div className="relative">
             { }
@@ -60,8 +57,7 @@ export function VideoComingSoon({
               alt={`${scene.label} preview`}
               className="aspect-video w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
-            <Waves className="absolute inset-x-0 bottom-0 h-24 w-full opacity-30 text-white" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
 
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/90 text-emerald-700 shadow-lift">
@@ -71,15 +67,16 @@ export function VideoComingSoon({
                 Coming Soon
               </Badge>
               <p className="mt-2 text-center text-white/90">
-                Personalized AI video for {profile?.regionState ?? "your region"}
+                Personalized memory videos for {profile?.regionState ?? "your region"}
               </p>
             </div>
+            {/* subtle locked state, top-right */}
+            <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
+              <Lock className="h-3.5 w-3.5" /> Coming soon
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-4 w-4" /> 8-second realistic scene
-            </span>
-            <span>Veo · culturally familiar · elder-friendly</span>
+          <div className="border-t border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
+            A calm, realistic visual experience — designed for gentle cognitive engagement.
           </div>
         </Card>
 
