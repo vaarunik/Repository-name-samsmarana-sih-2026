@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       score: Number(body.score) || 0,
       syncState: "synced",
       syncId: body.syncId,
+      stimulusId: body.stimulusId || null,
     },
   });
   return NextResponse.json({ attempt: toAttempt(created) });
@@ -67,7 +68,7 @@ function toAttempt(r: {
   id: string; profileId: string; activityId: string; category: string;
   title: string; difficulty: number; accuracy: number; responseMs: number;
   completed: boolean; skipped: boolean; score: number; syncState: string;
-  syncId: string; createdAt: Date;
+  syncId: string; createdAt: Date; stimulusId?: string | null;
 }): AttemptRecord {
   return {
     id: r.id,
@@ -84,5 +85,6 @@ function toAttempt(r: {
     syncState: r.syncState as "synced" | "pending",
     syncId: r.syncId,
     createdAt: r.createdAt.toISOString(),
+    stimulusId: r.stimulusId ?? undefined,
   };
 }

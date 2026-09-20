@@ -36,6 +36,23 @@ model Profile {
   reminders        Reminder[]
   familyMessages   FamilyMessage[]
   videos           VideoGeneration[]
+  contentHistory   ActivityContentHistory[]
+}
+
+// Per-user 30-day content/stimulus rotation history.
+// Records which stimulus (scene) was shown for which activity type, so the
+// same stimulus is excluded for this user+activity for CONTENT_COOLDOWN_DAYS.
+model ActivityContentHistory {
+  id            String   @id @default(cuid())
+  profileId     String
+  activityType  String   // the cognitive category / activity type
+  stimulusId    String   // the scene/content variant shown
+  shownAt       DateTime @default(now())
+  completedAt   DateTime?
+
+  profile       Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, activityType, shownAt])
 }
 
 model Attempt {
@@ -50,6 +67,8 @@ model Attempt {
   completed     Boolean  @default(false)
   skipped       Boolean  @default(false)
   score         Int      @default(0)
+  // the stimulus (scene) shown for this attempt — supports content rotation
+  stimulusId    String?
   // offline sync state: synced | pending
   syncState     String   @default("synced")
   // idempotency key for offline sync

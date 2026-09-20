@@ -57,16 +57,63 @@ export function ActivityPlayer({
   const profile = useApp((s) => s.profile);
   const [speed, setSpeed] = useVoiceSpeed();
   const [phase, setPhase] = useState<Phase>("intro");
-  // Adaptive question set: 3–5 varied questions per session, rotating content
-  // so the same activity produces different questions across sessions.
-  const questions = useMemo<Question[]>(
-    () =>
-      buildQuestions(activity.scene, activity.category, activity.difficulty, {
-        minQuestions: 3,
-        maxQuestions: 5,
-      }),
-    [activity]
-  );
+
+  // ── Per-user 30-day stimulus rotation ──
+  // Fetch a fresh stimulus (scene) for this user+activity from the API on mount.
+  // The same stimulus is excluded for this user for 30 days. Falls back to the
+  // activity's default scene if the API is unavailable (e.g. offline).
+  const [stimulus, setStimulus] = useState<{
+    scene: SceneKey;
+    image: string;
+    label: string;
+    questions: Question[];
+    loading: boolean;
+  }>({
+    scene: activity.scene,
+    image: SCENE_META[activity.scene].image,
+    label: SCENE_META[activity.scene].label,
+    questions: buildQuestions(activity.scene, activity.category, activity.difficulty, {
+      minQuestions: 3,
+      maxQuestions: 5,
+    }),
+    loading: true,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/stimulus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            activityType: activity.category,
+            difficulty: activity.difficulty,
+          }),
+        });
+        const data = await res.json();
+        if (cancelled || !data.stimulusId) return;
+        const scene = data.stimulusId as SceneKey;
+        const meta = SCENE_META[scene];
+        setStimulus({
+          scene,
+          image: meta.image,
+          label: meta.label,
+          questions: data.questions ?? [],
+          loading: false,
+        });
+      } catch {
+        if (!cancelled) setStimulus((s) => ({ ...s, loading: false }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activity]);
+
+  // Use the rotated stimulus's questions (or fallback to locally-built ones).
+  const questions = stimulus.questions;
+  const scene = stimulus.scene;
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const startRef = useRef<number>(0);
@@ -153,19 +200,25 @@ export function ActivityPlayer({
       syncState: "synced",
       syncId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
+      stimulusId: scene,
     };
     await recordAttempt(attempt);
+    // Mark the stimulus as completed (for the 30-day rotation history).
+    fetch("/api/stimulus", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityType: activity.category, stimulusId: scene }),
+    }).catch(() => {});
     setPhase("complete");
   }
 
-  const objects = useMemo(() => sceneObjects(activity.scene), [activity]);
-  const scene = SCENE_META[activity.scene];
+  const objects = useMemo(() => sceneObjects(scene), [scene]);
   const lang = (profile?.language ?? "en") as never;
   const currentQ = questions[qi];
 
   // Voice instructions per phase
   const introInstruction = `Activity: ${activity.title}. ${activity.description} Look carefully at the picture, then answer the questions.`;
-  const observeInstruction = `Look carefully at this ${scene.label.toLowerCase()} scene. Try to remember the objects, colours and where things are. Take your time.`;
+  const observeInstruction = `Look carefully at this ${stimulus.label.toLowerCase()} scene. Try to remember the objects, colours and where things are. Take your time.`;
   const questionInstruction = currentQ?.prompt ?? "";
 
   // ── INTRO ──────────────────────────────────────────────
@@ -176,13 +229,13 @@ export function ActivityPlayer({
           <div className="relative">
             { }
             <img
-              src={scene.image}
-              alt={scene.label}
+              src={stimulus.image}
+              alt={stimulus.label}
               className="aspect-video w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
             <div className="absolute bottom-0 left-0 p-6 text-white">
-              <Badge className="bg-white/25 text-white backdrop-blur">{scene.label}</Badge>
+              <Badge className="bg-white/25 text-white backdrop-blur">{stimulus.label}</Badge>
               <h2 className="mt-2 font-serif text-3xl font-semibold drop-shadow">{activity.title}</h2>
               <p className="text-white/90 drop-shadow">{activity.description}</p>
             </div>
@@ -244,7 +297,7 @@ export function ActivityPlayer({
         </div>
         <Card className="overflow-hidden p-0">
           { }
-          <img src={scene.image} alt={scene.label} className="aspect-video w-full object-cover" />
+          <img src={stimulus.image} alt={stimulus.label} className="aspect-video w-full object-cover" />
         </Card>
         <p className="mt-3 text-center text-sm text-muted-foreground">Take your time…</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">

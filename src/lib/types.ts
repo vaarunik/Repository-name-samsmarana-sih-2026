@@ -103,6 +103,8 @@ export interface AttemptRecord {
   syncState: "synced" | "pending";
   syncId: string;
   createdAt: string;
+  /** the stimulus (scene) shown for this attempt — supports content rotation */
+  stimulusId?: string;
 }
 
 export interface ReminderItem {
