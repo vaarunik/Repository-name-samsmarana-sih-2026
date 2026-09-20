@@ -243,8 +243,8 @@ export function LandingView() {
         </FadeIn>
       </Section>
 
-      {/* ── AI Video (Coming Soon) ───────────────────────── */}
-      <Section id="video" eyebrow="AI-powered cognitive video" title="Personalized video activities, coming soon">
+      {/* ── AI Video (Gemini + Veo) ──────────────────────── */}
+      <Section id="video" eyebrow="AI-powered cognitive video" title="Personalized video activities, powered by Gemini & Veo">
         <div className="grid gap-6 lg:grid-cols-2">
           <FadeIn>
             <Card className="h-full overflow-hidden p-0">
@@ -257,7 +257,7 @@ export function LandingView() {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-emerald-700 shadow-lift">
                     <Video className="h-7 w-7" />
                   </div>
-                  <Badge className="mt-4 bg-amber-400 px-3 py-1 text-sm font-semibold text-amber-950">Coming Soon</Badge>
+                  <Badge className="mt-4 bg-emerald-500 px-3 py-1 text-sm font-semibold text-white">Live · Veo</Badge>
                 </div>
                 <div className="absolute bottom-3 left-3 rounded-md bg-black/40 px-2 py-1 text-xs text-white backdrop-blur">
                   Veo · 8s · 16:9
@@ -266,8 +266,8 @@ export function LandingView() {
               <div className="p-5">
                 <h3 className="font-medium text-foreground">Personalized, realistic memory scenes</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Samsmarana will soon generate calm, realistic 8-second scenes tailored to each
-                  elder&apos;s language, region, interests and the activity — then pair them with
+                  Samsmarana generates calm, realistic 8-second scenes tailored to each
+                  elder&apos;s language, region, interests and the activity — then pairs them with
                   cognitive questions. Built on Google&apos;s Gemini &amp; Veo.
                 </p>
               </div>
@@ -277,11 +277,11 @@ export function LandingView() {
             <Card className="h-full p-6">
               <ShieldCheck className="h-6 w-6 text-emerald-700" />
               <h3 className="mt-3 font-serif text-xl font-semibold text-foreground">
-                Designed to be private and reliable
+                Private and reliable by design
               </h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                 {[
-                  "The Gemini API key will be read server-side and never exposed to the browser.",
+                  "The Gemini API key is read server-side and never exposed to the browser.",
                   "Real MP4 video — no placeholders, SVGs or fake success states.",
                   "If generation ever fails, a clean fallback lets the user continue with a standard visual activity.",
                 ].map((t) => (
@@ -291,8 +291,8 @@ export function LandingView() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                This feature is under development. The visual cognitive activities below work fully today.
+              <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Video generation requires a supported region for the Gemini API. If unavailable, the visual cognitive activity still works fully.
               </p>
             </Card>
           </FadeIn>

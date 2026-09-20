@@ -37,7 +37,7 @@ import { ActivityPlayer } from "./ActivityPlayer";
 import { StoryActivity } from "./StoryActivity";
 import { StoryGamePlayer } from "./StoryGamePlayer";
 import { SequencingPlayer } from "./SequencingPlayer";
-import { VideoComingSoon } from "./VideoComingSoon";
+import { VideoActivity } from "./VideoActivity";
 import { useApp } from "@/lib/store";
 import { syncPending } from "@/lib/sync";
 import {
@@ -88,7 +88,7 @@ export function ElderView() {
     }
     if (launched.kind === "video") {
       return (
-        <VideoComingSoon
+        <VideoActivity
           activity={launched.activity}
           onExit={() => setLaunched(null)}
           onUseStandard={() => setLaunched({ kind: "standard", activity: launched.activity })}
@@ -184,11 +184,10 @@ export function ElderView() {
                             {recActivity.video && (
                               <Button
                                 variant="outline"
-                                className="gap-1.5 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                className="gap-1.5 border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-100"
                                 onClick={() => setLaunched({ kind: "video", activity: recActivity })}
                               >
                                 <Video className="h-4 w-4" /> Personalized Video
-                                <Badge className="ml-1 bg-amber-200 px-1.5 py-0 text-[10px] text-amber-900">Soon</Badge>
                               </Button>
                             )}
                             <Button
@@ -318,9 +317,8 @@ function ActivityCard({
             {isStory ? "Read" : "Start"} <ArrowRight className="h-3.5 w-3.5" />
           </Button>
           {activity.video && (
-            <Button size="sm" variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={onVideo}>
+            <Button size="sm" variant="outline" className="gap-1 border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-100" onClick={onVideo}>
               <Video className="h-3.5 w-3.5" /> Video
-              <span className="ml-0.5 rounded bg-amber-200 px-1 text-[9px] font-semibold text-amber-900">SOON</span>
             </Button>
           )}
         </div>
