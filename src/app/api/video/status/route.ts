@@ -22,8 +22,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "id is required." }, { status: 400 });
   }
 
+  // The client polls by the Veo operationId; direct status checks may use the
+  // DB record id. Resolve either way (operationId first, then record id).
   const row = await db.videoGeneration.findFirst({
-    where: { id, profileId },
+    where: { profileId, OR: [{ operationId: id }, { id }] },
   });
   if (!row) {
     return NextResponse.json({ message: "Not found." }, { status: 404 });

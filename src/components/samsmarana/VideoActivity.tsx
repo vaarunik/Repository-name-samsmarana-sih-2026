@@ -97,15 +97,20 @@ export function VideoActivity({
         updatedAt: new Date().toISOString(),
       });
       setPhase("generating");
-      poll(data.id);
+      if (!data.operationId) {
+        // No operation to poll (shouldn't happen in "generating" state) — fall back.
+        setPhase("fallback");
+        return;
+      }
+      poll(data.operationId);
     } catch {
       setPhase("fallback");
     }
   }
 
-  async function poll(id: string) {
+  async function poll(operationId: string) {
     try {
-      const res = await fetch(`/api/video/status?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/video/status?id=${encodeURIComponent(operationId)}`, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -115,8 +120,8 @@ export function VideoActivity({
         setVideo((v) =>
           v ? { ...v, status: "ready", videoUrl: data.videoUrl } : v
         );
-        // cache the real video blob offline for replay
-        cacheVideo(data.videoUrl, id).catch(() => {});
+        // cache the real video blob offline for replay (key by record id)
+        if (data.id) cacheVideo(data.videoUrl, data.id).catch(() => {});
         setPhase("ready");
         return;
       }
@@ -125,9 +130,9 @@ export function VideoActivity({
         return;
       }
       // preparing / generating — keep polling
-      pollRef.current = setTimeout(() => poll(id), 4000);
+      pollRef.current = setTimeout(() => poll(operationId), 4000);
     } catch {
-      pollRef.current = setTimeout(() => poll(id), 5000);
+      pollRef.current = setTimeout(() => poll(operationId), 5000);
     }
   }
 
