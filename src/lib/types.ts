@@ -51,6 +51,12 @@ export interface Question {
   answerIndex: number;
   /** human-readable explanation shown after answering */
   explanation: string;
+  /**
+   * Optional grounding marker. When set, the answer is grounded in the
+   * stimulus by construction (e.g. "not in scene" questions, or counts
+   * derived from the object list) and bypasses the strict membership check.
+   */
+  answerGroundedBy?: "not-in-scene" | "object-count" | "people-count" | "reasoning";
 }
 
 export interface Activity {

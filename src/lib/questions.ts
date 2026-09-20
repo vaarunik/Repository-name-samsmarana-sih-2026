@@ -1,16 +1,27 @@
 // SAMSMARANA — cognitive question bank
-// Each scene has a "content pack" describing what is actually shown,
-// so that the questions are answerable and consistent with the Veo
-// prompt (which is built from the same pack). Questions cover all
-// active cognitive categories.
+//
+// GROUNDING PRINCIPLE (critical):
+// Each scene's ContentPack describes ONLY what is actually visible in the
+// corresponding stimulus image (/public/images/activities/<scene>.png).
+// The packs were verified against the real images. Questions are generated
+// exclusively from this structured evidence, and every generated question
+// is validated by `validateQuestion()` before it reaches the UI — if the
+// answer is not supported by the stimulus evidence, the question is
+// discarded. This prevents hallucinated/unanswerable questions such as
+// asking about a "shopkeeper" in an image that contains only vegetables.
 
 import type { ActivityCategory, Question, SceneKey } from "./types";
 
 interface ContentPack {
-  objects: string[]; // ordered by appearance
+  /** objects actually visible in the stimulus image, ordered by appearance */
+  objects: string[];
+  /** counts of objects actually visible in the stimulus image */
   counts: Record<string, number>;
+  /** colours of objects actually visible in the stimulus image */
   colors: Record<string, string>;
+  /** positions of objects actually visible in the stimulus image */
   positions: Record<string, string>;
+  /** number of people actually visible in the stimulus image (omit if 0) */
   people?: number;
   first: string;
   last: string;
@@ -26,16 +37,18 @@ const PACKS: Record<SceneKey, ContentPack> = {
     last: "butterfly",
   },
   market: {
-    objects: ["tomato", "spinach", "pumpkin", "woven basket", "shopkeeper"],
-    counts: { tomato: 6, pumpkin: 2, basket: 3 },
-    colors: { tomato: "red", pumpkin: "green", shopkeeper: "blue" },
-    positions: { tomato: "on the left of the stall", pumpkin: "on the right" },
-    people: 1,
+    // Verified against /images/activities/market.png: tomatoes, basket,
+    // pumpkin, tablecloth. NO shopkeeper is visible — do not add one.
+    objects: ["tomato", "pumpkin", "woven basket"],
+    counts: { tomato: 6, pumpkin: 2, basket: 1 },
+    colors: { tomato: "red", pumpkin: "green", basket: "brown" },
+    positions: { tomato: "on the left of the stall", pumpkin: "on the right", basket: "in the centre" },
     first: "tomato",
-    last: "shopkeeper",
+    last: "pumpkin",
   },
   shop: {
-    objects: ["glass jar", "rice bag", "tin of tea", "notebook", "shopkeeper"],
+    // Verified: a person, jars, bag, tin, notebook, table, shelf, package.
+    objects: ["glass jar", "rice bag", "tin of tea", "notebook"],
     counts: { "glass jar": 4, "rice bag": 2, "tin of tea": 3 },
     colors: { "rice bag": "white", "tin of tea": "green" },
     positions: { "glass jar": "on the top shelf", "rice bag": "on the floor" },
@@ -44,52 +57,54 @@ const PACKS: Record<SceneKey, ContentPack> = {
     last: "notebook",
   },
   cooking: {
-    objects: ["pot", "rice", "spoon", "mustard seeds", "curry leaf"],
-    counts: { pot: 1, spoon: 2, "curry leaf": 4 },
-    colors: { pot: "black", spoon: "steel" },
+    objects: ["pot", "rice", "spoon", "green vegetables"],
+    counts: { pot: 1, spoon: 2 },
+    colors: { pot: "black", spoon: "steel", "green vegetables": "green" },
     positions: { pot: "on the stove", spoon: "beside the pot" },
     first: "pot",
-    last: "curry leaf",
+    last: "green vegetables",
   },
   tea: {
-    objects: ["steel tumbler", "tea leaves", "milk", "ginger", "sugar"],
-    counts: { "steel tumbler": 2, ginger: 3 },
-    colors: { "steel tumbler": "silver", milk: "white" },
-    positions: { "steel tumbler": "on the right", ginger: "in the pot" },
-    first: "steel tumbler",
+    objects: ["mug", "tea leaves", "ginger", "sugar"],
+    counts: { mug: 1, ginger: 3 },
+    colors: { mug: "white", sugar: "white" },
+    positions: { mug: "on the right", ginger: "beside the mug" },
+    first: "mug",
     last: "sugar",
   },
   train: {
-    objects: ["window", "green field", "passenger", "tea vendor", "river"],
-    counts: { passenger: 2, "tea vendor": 1 },
-    colors: { field: "green", river: "blue" },
-    positions: { field: "outside the window", "tea vendor": "in the aisle" },
-    people: 3,
+    objects: ["window", "green field", "man", "kettle"],
+    counts: { man: 1, kettle: 1 },
+    colors: { field: "green", kettle: "steel" },
+    positions: { field: "outside the window", kettle: "near the man" },
+    people: 1,
     first: "window",
-    last: "river",
+    last: "kettle",
   },
   nature: {
-    objects: ["hill", "tree", "stream", "cloud", "bird"],
+    objects: ["river", "tree", "hill", "cloud", "bird"],
     counts: { tree: 4, bird: 2, cloud: 3 },
-    colors: { hill: "green", stream: "blue" },
-    positions: { hill: "in the distance", stream: "in the foreground" },
+    colors: { hill: "green", river: "blue" },
+    positions: { hill: "in the distance", river: "in the foreground" },
     first: "hill",
     last: "bird",
   },
   birds: {
-    objects: ["sparrow", "parrot", "myna", "feeder", "branch"],
-    counts: { sparrow: 3, parrot: 2, myna: 1 },
-    colors: { parrot: "green", sparrow: "brown" },
+    // birds.png had no clearly visible birds in the VLM check — use the
+    // feeder/garden setting that is reliably visible.
+    objects: ["feeder", "branch", "leaf"],
+    counts: { feeder: 1, branch: 2 },
+    colors: { feeder: "brown", branch: "green" },
     positions: { feeder: "on the ground", branch: "above the feeder" },
-    first: "sparrow",
+    first: "feeder",
     last: "branch",
   },
   home: {
-    objects: ["brass lamp", "photo frame", "steel glass", "banana", "newspaper"],
-    counts: { "steel glass": 2, banana: 3 },
+    objects: ["lamp", "photo frame", "cup", "banana", "newspaper"],
+    counts: { cup: 2, banana: 3 },
     colors: { lamp: "brass", "photo frame": "brown" },
     positions: { lamp: "on the shelf", newspaper: "on the table" },
-    first: "brass lamp",
+    first: "lamp",
     last: "newspaper",
   },
   community: {
@@ -102,16 +117,16 @@ const PACKS: Record<SceneKey, ContentPack> = {
     last: "tea glass",
   },
   river: {
-    objects: ["boat", "fisherman", "net", "heron", "morning mist"],
+    objects: ["boat", "fisherman", "net", "heron"],
     counts: { boat: 1, heron: 2, fisherman: 1 },
     colors: { boat: "wooden", heron: "white" },
     positions: { boat: "near the bank", heron: "at the water's edge" },
     people: 1,
     first: "boat",
-    last: "morning mist",
+    last: "heron",
   },
   festival: {
-    objects: ["diya", "rangoli", "sweet box", "flower garland", "banana leaf"],
+    objects: ["diya", "rangoli", "sweet box", "flower", "banana leaf"],
     counts: { diya: 4, "sweet box": 2 },
     colors: { rangoli: "colourful", diya: "golden" },
     positions: { rangoli: "at the doorstep", diya: "around the rangoli" },
@@ -146,7 +161,8 @@ function mc(
   prompt: string,
   correct: string,
   wrongs: string[],
-  explanation: string
+  explanation: string,
+  answerGroundedBy?: "not-in-scene" | "object-count" | "people-count" | "reasoning"
 ): Question {
   const options = shuffle([correct, ...wrongs]);
   return {
@@ -156,6 +172,7 @@ function mc(
     options,
     answerIndex: options.indexOf(correct),
     explanation,
+    answerGroundedBy,
   };
 }
 
@@ -169,6 +186,137 @@ export function questionSignature(skill: ActivityCategory, subject: string): str
   return `${skill}:${subject.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 40)}`;
 }
 
+// ─────────────────────────────────────────────────────────────
+// STIMULUS EVIDENCE + DETERMINISTIC VALIDATION (critical)
+// ─────────────────────────────────────────────────────────────
+//
+// Every question's answer MUST be directly supported by the stimulus
+// evidence (the ContentPack of the scene). `validateQuestion` checks this
+// deterministically — no self-contradictory LLM judging its own output.
+// Questions that fail validation are discarded and never reach the UI.
+
+/**
+ * The structured evidence extracted from a stimulus (the scene's content pack).
+ * Every valid question answer must be grounded in this evidence.
+ */
+export interface StimulusEvidence {
+  stimulusId: string;
+  objects: string[];
+  counts: Record<string, number>;
+  colors: Record<string, string>;
+  positions: Record<string, string>;
+  people?: number;
+  first: string;
+  last: string;
+}
+
+/** Extract the ground-truth evidence for a scene. */
+export function stimulusEvidence(scene: SceneKey): StimulusEvidence {
+  const p = PACKS[scene];
+  return {
+    stimulusId: scene,
+    objects: [...p.objects],
+    counts: { ...p.counts },
+    colors: { ...p.colors },
+    positions: { ...p.positions },
+    people: p.people,
+    first: p.first,
+    last: p.last,
+  };
+}
+
+/**
+ * The set of all answer strings that are grounded in the stimulus evidence.
+ * A question is valid only if its correct answer appears in this set (case-
+ * insensitive, loosely normalized). This is the deterministic validation —
+ * it does not consult any LLM, only the structured evidence.
+ */
+export function groundedAnswers(ev: StimulusEvidence): Set<string> {
+  const set = new Set<string>();
+  const norm = (s: string) => s.toLowerCase().trim();
+  ev.objects.forEach((o) => set.add(norm(o)));
+  Object.keys(ev.counts).forEach((o) => set.add(norm(o)));
+  Object.keys(ev.colors).forEach((o) => set.add(norm(o)));
+  Object.keys(ev.positions).forEach((o) => set.add(norm(o)));
+  Object.entries(ev.colors).forEach(([, c]) => set.add(norm(c)));
+  Object.entries(ev.positions).forEach(([, p]) => set.add(norm(p)));
+  Object.entries(ev.counts).forEach(([, n]) => set.add(String(n)));
+  if (ev.people) set.add(String(ev.people));
+  set.add(norm(ev.first));
+  set.add(norm(ev.last));
+  // Allow "yes"/"no" for concentration yes/no questions about present objects
+  set.add("yes");
+  set.add("no");
+  return set;
+}
+
+/**
+ * Validate that a question's correct answer is supported by the stimulus.
+ * Returns { ok, reason }. Deterministic — no LLM judgment.
+ *
+ * Questions marked `answerGroundedBy` are grounded by construction:
+ *  - "not-in-scene": the correct answer is intentionally absent (the
+ *    distractors are all grounded objects, the correct answer is "none of
+ *    these / a space rocket"). Validated by checking all *other* options are
+ *    grounded.
+ *  - "object-count": the answer is the count of distinct objects in the
+ *    stimulus (derived from the evidence).
+ *  - "people-count": the answer is the number of people in the stimulus.
+ */
+export function validateQuestion(
+  q: { skill: ActivityCategory; prompt: string; options: string[]; answerIndex: number; answerGroundedBy?: string },
+  ev: StimulusEvidence
+): { ok: boolean; reason: string } {
+  if (q.answerIndex < 0 || q.answerIndex >= q.options.length) {
+    return { ok: false, reason: "invalid answer index" };
+  }
+  const correct = String(q.options[q.answerIndex]).toLowerCase().trim();
+  const allowed = groundedAnswers(ev);
+
+  // Grounded-by-construction markers.
+  if (q.answerGroundedBy === "not-in-scene") {
+    // The correct answer is intentionally NOT in the scene; all distractors
+    // (the other options) MUST be grounded objects.
+    const distractors = q.options.filter((_, i) => i !== q.answerIndex);
+    const allGrounded = distractors.every((d) => allowed.has(String(d).toLowerCase().trim()));
+    return allGrounded
+      ? { ok: true, reason: "not-in-scene: distractors grounded in stimulus" }
+      : { ok: false, reason: "not-in-scene: some distractors not in stimulus" };
+  }
+  if (q.answerGroundedBy === "object-count") {
+    return correct === String(ev.objects.length)
+      ? { ok: true, reason: "object-count grounded in stimulus" }
+      : { ok: false, reason: `object-count mismatch: ${correct} vs ${ev.objects.length}` };
+  }
+  if (q.answerGroundedBy === "people-count") {
+    return ev.people && correct === String(ev.people)
+      ? { ok: true, reason: "people-count grounded in stimulus" }
+      : { ok: false, reason: "people-count not grounded in stimulus" };
+  }
+  if (q.answerGroundedBy === "reasoning") {
+    // The scenario references a grounded stimulus object; the answer is a
+    // safety/reasoning judgment (not a stimulus fact). Accepted by construction.
+    return { ok: true, reason: "reasoning: scenario grounded in stimulus" };
+  }
+
+  // Direct match against grounded answers.
+  if (allowed.has(correct)) return { ok: true, reason: "answer grounded in stimulus" };
+
+  // The correct answer may be a count like "3" — allow if it matches a count.
+  const countVals = Object.values(ev.counts).map(String);
+  if (countVals.includes(correct)) return { ok: true, reason: "count grounded in stimulus" };
+
+  // People-count answers.
+  if (ev.people && correct === String(ev.people)) {
+    return { ok: true, reason: "people count grounded in stimulus" };
+  }
+
+  return {
+    ok: false,
+    reason: `answer "${correct}" not present in stimulus evidence: ${[...allowed].slice(0, 12).join(", ")}`,
+  };
+}
+
 export interface BuildQuestionsOptions {
   /** signatures of recently-asked questions to avoid repeating */
   recentSignatures?: string[];
@@ -176,6 +324,8 @@ export interface BuildQuestionsOptions {
   minQuestions?: number;
   /** maximum number of questions (default 5) */
   maxQuestions?: number;
+  /** internal: prevents infinite recursion in the fallback path */
+  _fallback?: boolean;
 }
 
 /**
@@ -200,14 +350,29 @@ export function buildQuestions(
   const minQ = opts.minQuestions ?? 3;
   const maxQ = opts.maxQuestions ?? 5;
   const out: Question[] = [];
+  const ev = stimulusEvidence(scene);
 
   // Track used subjects within this set so we don't repeat the same target.
   const usedSubjects = new Set<string>();
   const tryAdd = (q: Question | null): boolean => {
     if (!q) return false;
     const sig = questionSignature(q.skill, q.prompt);
-    // signature check is on the prompt text; also avoid exact subject repeats
     if (recent.has(sig)) return false;
+    // CRITICAL: validate the question's answer against the stimulus evidence.
+    // Discard any question whose answer is not grounded in the actual stimulus.
+    const v = validateQuestion(q, ev);
+    if (process.env.NODE_ENV !== "production") {
+      // Development logging for tracing grounding (stimulus → question → answer → validation)
+      console.debug("[question-grounding]", {
+        stimulusId: ev.stimulusId,
+        evidence: ev.objects,
+        question: q.prompt,
+        answer: q.options[q.answerIndex],
+        validation: v.ok ? "PASS" : "FAIL",
+        reason: v.reason,
+      });
+    }
+    if (!v.ok) return false; // invalid question never reaches the UI
     out.push(q);
     return true;
   };
@@ -231,14 +396,17 @@ export function buildQuestions(
           : mc("recognition", prompt, t, wrongsFrom([t]).slice(0, 3), `The ${t} was clearly shown in the scene.`);
       if (tryAdd(q)) made++;
     }
-    // "NOT part of the scene" variant (harder)
+    // "NOT part of the scene" variant (harder) — grounded by construction:
+    // the correct answer ("a space rocket") is intentionally absent; all
+    // distractors are grounded objects from the stimulus.
     if (made < count && difficulty >= 2) {
       const q = mc(
         "recognition",
         `Which object was NOT part of the scene?`,
         "a space rocket",
         wrongsFrom([]).slice(0, 3),
-        `A space rocket was not shown — everything else appeared in the scene.`
+        `A space rocket was not shown — everything else appeared in the scene.`,
+        "not-in-scene"
       );
       if (tryAdd(q)) made++;
     }
@@ -285,7 +453,8 @@ export function buildQuestions(
         `How many people did you see in the scene?`,
         String(pack.people),
         shuffle([String(pack.people + 1), String(pack.people + 2), String(Math.max(0, pack.people - 1))]),
-        `There ${pack.people === 1 ? "was 1 person" : `were ${pack.people} people`} in the scene.`
+        `There ${pack.people === 1 ? "was 1 person" : `were ${pack.people} people`} in the scene.`,
+        "people-count"
       );
       if (tryAdd(q)) made++;
     }
@@ -354,7 +523,7 @@ export function buildQuestions(
       if (tryAdd(q)) made++;
     }
     if (made < count) {
-      tryAdd(mc("concentration", `How many different objects appeared?`, String(objs.length), shuffle([String(Math.max(0, objs.length - 1)), String(objs.length + 1)]), `${objs.length} different objects appeared in the scene.`));
+      tryAdd(mc("concentration", `How many different objects appeared?`, String(objs.length), shuffle([String(Math.max(0, objs.length - 1)), String(objs.length + 1)]), `${objs.length} different objects appeared in the scene.`, "object-count"));
     }
   };
 
@@ -368,7 +537,8 @@ export function buildQuestions(
         `If you needed the ${pObj} but could not reach it safely, what is the best next step?`,
         "Ask someone for help",
         ["Climb the shelves quickly", "Pull the shelf toward you", "Jump and grab it"],
-        `Asking for help is the safest choice — climbing or pulling shelves risks a fall.`
+        `Asking for help is the safest choice — climbing or pulling shelves risks a fall.`,
+        "reasoning"
       );
       if (tryAdd(q)) made++;
     }
@@ -406,8 +576,13 @@ export function buildQuestions(
 
   // Fallback: if not enough unique questions were built (rare), relax the
   // recent-signature constraint so the activity still has >= minQ questions.
-  if (out.length < minQ) {
-    const fallback = buildQuestions(scene, category, difficulty, { ...opts, recentSignatures: [] });
+  // Guard against infinite recursion with a depth flag.
+  if (out.length < minQ && !opts._fallback) {
+    const fallback = buildQuestions(scene, category, difficulty, {
+      ...opts,
+      recentSignatures: [],
+      _fallback: true,
+    });
     for (const q of fallback) {
       if (out.length >= minQ) break;
       if (!out.some((x) => x.prompt === q.prompt)) out.push(q);
