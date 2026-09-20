@@ -129,6 +129,13 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** Pick a random element, optionally avoiding some values. */
+function pickFrom<T>(arr: T[], avoid: T[] = []): T | undefined {
+  const pool = arr.filter((x) => !avoid.includes(x));
+  const src = pool.length ? pool : arr;
+  return src[Math.floor(Math.random() * src.length)];
+}
+
 /**
  * Build a multiple-choice question. `correct` is always one of the options;
  * the helper shuffles all options and records the correct index after
@@ -152,214 +159,262 @@ function mc(
   };
 }
 
-/** Build a focused set of cognitive questions for a scene + category. */
+/**
+ * A normalized "signature" of a question's content (skill + the key subject),
+ * used to detect near-duplicates across sessions. Two questions with the same
+ * signature are functionally the same question (e.g. "Which festival…Ganesha"
+ * vs "Which festival…bringing Ganesha idols home").
+ */
+export function questionSignature(skill: ActivityCategory, subject: string): string {
+  return `${skill}:${subject.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 40)}`;
+}
+
+export interface BuildQuestionsOptions {
+  /** signatures of recently-asked questions to avoid repeating */
+  recentSignatures?: string[];
+  /** minimum number of questions to build (default 3; capped by available content) */
+  minQuestions?: number;
+  /** maximum number of questions (default 5) */
+  maxQuestions?: number;
+}
+
+/**
+ * Build a varied set of cognitive questions for a scene + category.
+ *
+ * Each call rotates which objects/colours/positions are queried, so the same
+ * (scene, category, difficulty) produces different question content across
+ * sessions. Near-duplicate questions are avoided using `recentSignatures`.
+ * Guarantees at least `minQuestions` (3 by default) where content allows.
+ */
 export function buildQuestions(
   scene: SceneKey,
   category: ActivityCategory,
-  difficulty: number
+  difficulty: number,
+  opts: BuildQuestionsOptions = {}
 ): Question[] {
   const pack = PACKS[scene];
   const objs = pack.objects;
   const wrongsFrom = (exclude: string[]) =>
-    objs.filter((o) => !exclude.includes(o));
+    shuffle(objs.filter((o) => !exclude.includes(o)));
+  const recent = new Set(opts.recentSignatures ?? []);
+  const minQ = opts.minQuestions ?? 3;
+  const maxQ = opts.maxQuestions ?? 5;
   const out: Question[] = [];
 
+  // Track used subjects within this set so we don't repeat the same target.
+  const usedSubjects = new Set<string>();
+  const tryAdd = (q: Question | null): boolean => {
+    if (!q) return false;
+    const sig = questionSignature(q.skill, q.prompt);
+    // signature check is on the prompt text; also avoid exact subject repeats
+    if (recent.has(sig)) return false;
+    out.push(q);
+    return true;
+  };
+
+  // Helper to build "recognition" variants rotating through the object pool.
+  const buildRecognition = (count: number) => {
+    const targets = shuffle(objs);
+    let made = 0;
+    for (let i = 0; i < targets.length && made < count; i++) {
+      const t = targets[i];
+      const variant = made % 3; // rotate prompt variants
+      const prompt =
+        variant === 0
+          ? `Which of these did you see in the ${sceneLabel(scene)}?`
+          : variant === 1
+            ? `Was the ${t} shown in the scene?`
+            : `Which object was part of the scene?`;
+      const q =
+        variant === 1
+          ? mc("recognition", prompt, "Yes", ["No"], `Yes — the ${t} was shown in the scene.`)
+          : mc("recognition", prompt, t, wrongsFrom([t]).slice(0, 3), `The ${t} was clearly shown in the scene.`);
+      if (tryAdd(q)) made++;
+    }
+    // "NOT part of the scene" variant (harder)
+    if (made < count && difficulty >= 2) {
+      const q = mc(
+        "recognition",
+        `Which object was NOT part of the scene?`,
+        "a space rocket",
+        wrongsFrom([]).slice(0, 3),
+        `A space rocket was not shown — everything else appeared in the scene.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildRecall = (count: number) => {
+    // rotate between first/last/middle ordering questions
+    const variants = [
+      { prompt: `Which object appeared FIRST in the scene?`, ans: pack.first, exp: `The ${pack.first} appeared first.` },
+      { prompt: `Which object appeared LAST in the scene?`, ans: pack.last, exp: `The ${pack.last} appeared last.` },
+    ];
+    if (objs.length >= 3) {
+      const mid = objs[Math.floor(objs.length / 2)];
+      variants.push({
+        prompt: `Which object appeared in the MIDDLE of the scene?`,
+        ans: mid,
+        exp: `The ${mid} appeared in the middle.`,
+      });
+    }
+    const order = shuffle(variants);
+    for (let i = 0; i < order.length && out.length < maxQ; i++) {
+      const v = order[i];
+      tryAdd(mc("recall", v.prompt, v.ans, wrongsFrom([v.ans]).slice(0, 3), v.exp));
+    }
+  };
+
+  const buildAttention = (count: number) => {
+    const colorEntries = shuffle(Object.entries(pack.colors));
+    let made = 0;
+    for (let i = 0; i < colorEntries.length && made < count; i++) {
+      const [cObj, cCol] = colorEntries[i];
+      const q = mc(
+        "attention",
+        `What colour was the ${cObj}?`,
+        cCol,
+        shuffle(["yellow", "purple", "pink", "grey"].filter((c) => c !== cCol)).slice(0, 3),
+        `The ${cObj} was ${cCol}.`
+      );
+      if (tryAdd(q)) made++;
+    }
+    if (made < count && pack.people) {
+      const q = mc(
+        "attention",
+        `How many people did you see in the scene?`,
+        String(pack.people),
+        shuffle([String(pack.people + 1), String(pack.people + 2), String(Math.max(0, pack.people - 1))]),
+        `There ${pack.people === 1 ? "was 1 person" : `were ${pack.people} people`} in the scene.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildCounting = (count: number) => {
+    const countEntries = shuffle(Object.entries(pack.counts));
+    let made = 0;
+    for (let i = 0; i < countEntries.length && made < count; i++) {
+      const [cObj, cCount] = countEntries[i];
+      const q = mc(
+        "counting",
+        `How many ${cObj}${cObj.endsWith("s") ? "" : "s"} did you see?`,
+        String(cCount),
+        shuffle([String(cCount + 1), String(Math.max(0, cCount - 1)), String(cCount + 2)]),
+        `There ${cCount === 1 ? "was 1" : `were ${cCount}`} ${cObj} in the scene.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildSpatial = (count: number) => {
+    const posEntries = shuffle(Object.entries(pack.positions));
+    let made = 0;
+    for (let i = 0; i < posEntries.length && made < count; i++) {
+      const [sObj, sPos] = posEntries[i];
+      const q = mc(
+        "spatial",
+        `Where was the ${sObj}?`,
+        sPos,
+        shuffle(["in the centre", "on the ceiling", "under the table", "in the corner"].filter((p) => p !== sPos)).slice(0, 3),
+        `The ${sObj} was ${sPos}.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildSequencing = (count: number) => {
+    // rotate through consecutive pairs
+    const pairs: { a: string; b: string }[] = [];
+    for (let i = 0; i < objs.length - 1; i++) pairs.push({ a: objs[i], b: objs[i + 1] });
+    const order = shuffle(pairs);
+    let made = 0;
+    for (let i = 0; i < order.length && made < count; i++) {
+      const { a, b } = order[i];
+      const q = mc(
+        "sequencing",
+        `Which object came right AFTER the ${a}?`,
+        b,
+        wrongsFrom([b]).slice(0, 3),
+        `After the ${a}, the ${b} appeared.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildConcentration = (count: number) => {
+    const candidates = shuffle(objs);
+    let made = 0;
+    for (let i = 0; i < candidates.length && made < count; i++) {
+      const shown = candidates[i];
+      const isYes = Math.random() > 0.4;
+      const q = isYes
+        ? mc("concentration", `Was a ${shown} shown in the scene?`, "Yes", ["No"], `Yes — the ${shown} was shown.`)
+        : mc("concentration", `Was a ${shown} NOT shown in the scene?`, "No", ["Yes"], `No — the ${shown} was shown in the scene.`);
+      if (tryAdd(q)) made++;
+    }
+    if (made < count) {
+      tryAdd(mc("concentration", `How many different objects appeared?`, String(objs.length), shuffle([String(Math.max(0, objs.length - 1)), String(objs.length + 1)]), `${objs.length} different objects appeared in the scene.`));
+    }
+  };
+
+  const buildProblemSolving = (count: number) => {
+    const posEntries = shuffle(Object.entries(pack.positions));
+    let made = 0;
+    for (let i = 0; i < posEntries.length && made < count; i++) {
+      const [pObj] = posEntries[i];
+      const q = mc(
+        "problem_solving",
+        `If you needed the ${pObj} but could not reach it safely, what is the best next step?`,
+        "Ask someone for help",
+        ["Climb the shelves quickly", "Pull the shelf toward you", "Jump and grab it"],
+        `Asking for help is the safest choice — climbing or pulling shelves risks a fall.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  const buildLanguage = (count: number) => {
+    const words = shuffle(objs);
+    let made = 0;
+    for (let i = 0; i < words.length && made < count; i++) {
+      const word = words[i];
+      const q = mc(
+        "language",
+        `Which phrase best describes "${word}"?`,
+        "a familiar everyday thing",
+        shuffle(["a distant planet", "a type of storm", "a musical note", "a mathematical symbol"]),
+        `"${word}" is a familiar everyday thing shown in the scene.`
+      );
+      if (tryAdd(q)) made++;
+    }
+  };
+
+  // Build the target count of questions for this category.
+  const target = Math.min(maxQ, Math.max(minQ, difficulty >= 3 ? 4 : 3));
   switch (category) {
-    case "recognition": {
-      const target = objs[0];
-      out.push(
-        mc(
-          "recognition",
-          `Which of these did you see in the ${sceneLabel(scene)}?`,
-          target,
-          shuffle(wrongsFrom([target])).slice(0, 3),
-          `The ${target} was clearly shown in the scene.`
-        )
-      );
-      if (difficulty >= 2) {
-        const target2 = objs[2];
-        out.push(
-          mc(
-            "recognition",
-            `Which object was NOT part of the scene?`,
-            "a space rocket",
-            shuffle(wrongsFrom([target2])).slice(0, 3),
-            `A space rocket was not shown — everything else appeared in the scene.`
-          )
-        );
-      }
-      break;
-    }
-    case "recall": {
-      out.push(
-        mc(
-          "recall",
-          `Which object appeared FIRST in the scene?`,
-          pack.first,
-          shuffle(wrongsFrom([pack.first])).slice(0, 3),
-          `The ${pack.first} appeared first.`
-        )
-      );
-      if (difficulty >= 3) {
-        out.push(
-          mc(
-            "recall",
-            `Which object appeared LAST in the scene?`,
-            pack.last,
-            shuffle(wrongsFrom([pack.last])).slice(0, 3),
-            `The ${pack.last} appeared last.`
-          )
-        );
-      }
-      break;
-    }
-    case "attention": {
-      const [cObj, cCol] = Object.entries(pack.colors)[0];
-      out.push(
-        mc(
-          "attention",
-          `What colour was the ${cObj}?`,
-          cCol,
-          shuffle(["yellow", "purple", "pink"].filter((c) => c !== cCol)),
-          `The ${cObj} was ${cCol}.`
-        )
-      );
-      if (difficulty >= 2 && pack.people) {
-        out.push(
-          mc(
-            "attention",
-            `How many people did you see in the scene?`,
-            String(pack.people),
-            shuffle([String(pack.people + 1), String(pack.people + 2), String(Math.max(0, pack.people - 1))]),
-            `There ${pack.people === 1 ? "was 1 person" : `were ${pack.people} people`} in the scene.`
-          )
-        );
-      }
-      break;
-    }
-    case "counting": {
-      const [cObj, cCount] = Object.entries(pack.counts)[0];
-      out.push(
-        mc(
-          "counting",
-          `How many ${cObj}${cObj.endsWith("s") ? "" : "s"} did you see?`,
-          String(cCount),
-          shuffle([
-            String(cCount + 1),
-            String(Math.max(0, cCount - 1)),
-            String(cCount + 2),
-          ]),
-          `There ${cCount === 1 ? "was 1" : `were ${cCount}`} ${cObj} in the scene.`
-        )
-      );
-      if (difficulty >= 3) {
-        const entries = Object.entries(pack.counts);
-        if (entries[1]) {
-          const [cObj2, cCount2] = entries[1];
-          out.push(
-            mc(
-              "counting",
-              `How many ${cObj2} were there?`,
-              String(cCount2),
-              shuffle([String(cCount2 + 1), String(cCount2 + 2), String(Math.max(0, cCount2 - 1))]),
-              `There were ${cCount2} ${cObj2} in the scene.`
-            )
-          );
-        }
-      }
-      break;
-    }
-    case "spatial": {
-      const [sObj, sPos] = Object.entries(pack.positions)[0];
-      out.push(
-        mc(
-          "spatial",
-          `Where was the ${sObj}?`,
-          sPos,
-          shuffle(["in the centre", "on the ceiling", "under the table"].filter((p) => p !== sPos)),
-          `The ${sObj} was ${sPos}.`
-        )
-      );
-      if (difficulty >= 3) {
-        const entries = Object.entries(pack.positions);
-        if (entries[1]) {
-          const [sObj2, sPos2] = entries[1];
-          out.push(
-            mc(
-              "spatial",
-              `Where was the ${sObj2}?`,
-              sPos2,
-              shuffle([sPos, "in the centre"].filter((p) => p !== sPos2)),
-              `The ${sObj2} was ${sPos2}.`
-            )
-          );
-        }
-      }
-      break;
-    }
-    case "sequencing": {
-      const seq = objs.slice(0, Math.min(3, objs.length));
-      out.push(
-        mc(
-          "sequencing",
-          `Which object came right AFTER the ${seq[0]}?`,
-          seq[1],
-          shuffle(objs.filter((o) => o !== seq[1])).slice(0, 3),
-          `After the ${seq[0]}, the ${seq[1]} appeared.`
-        )
-      );
-      break;
-    }
-    case "concentration": {
-      out.push(
-        mc(
-          "concentration",
-          `Was a ${pack.first} shown in the scene?`,
-          "Yes",
-          ["No"],
-          `Yes — the ${pack.first} was shown.`
-        )
-      );
-      out.push(
-        mc(
-          "concentration",
-          `How many different objects appeared?`,
-          String(objs.length),
-          shuffle([String(objs.length - 1), String(objs.length + 1)]),
-          `${objs.length} different objects appeared in the scene.`
-        )
-      );
-      break;
-    }
-    case "problem_solving": {
-      const [pObj] = Object.entries(pack.positions)[0];
-      out.push(
-        mc(
-          "problem_solving",
-          `If you needed the ${pObj} but could not reach it safely, what is the best next step?`,
-          "Ask someone for help",
-          ["Climb the shelves quickly", "Pull the shelf toward you", "Jump and grab it"],
-          `Asking for help is the safest choice — climbing or pulling shelves risks a fall.`
-        )
-      );
-      break;
-    }
-    case "language": {
-      const word = pack.first;
-      out.push(
-        mc(
-          "language",
-          `Which phrase best describes "${word}"?`,
-          "a familiar everyday thing",
-          ["a distant planet", "a type of storm", "a musical note"],
-          `"${word}" is a familiar everyday thing shown in the scene.`
-        )
-      );
-      break;
+    case "recognition": buildRecognition(target); break;
+    case "recall": buildRecall(target); break;
+    case "attention": buildAttention(target); break;
+    case "counting": buildCounting(target); break;
+    case "spatial": buildSpatial(target); break;
+    case "sequencing": buildSequencing(target); break;
+    case "concentration": buildConcentration(target); break;
+    case "problem_solving": buildProblemSolving(target); break;
+    case "language": buildLanguage(target); break;
+  }
+
+  // Fallback: if not enough unique questions were built (rare), relax the
+  // recent-signature constraint so the activity still has >= minQ questions.
+  if (out.length < minQ) {
+    const fallback = buildQuestions(scene, category, difficulty, { ...opts, recentSignatures: [] });
+    for (const q of fallback) {
+      if (out.length >= minQ) break;
+      if (!out.some((x) => x.prompt === q.prompt)) out.push(q);
     }
   }
 
-  return out;
+  return out.slice(0, maxQ);
 }
 
 /** Return the objects that appear in a scene (for the memorize step). */

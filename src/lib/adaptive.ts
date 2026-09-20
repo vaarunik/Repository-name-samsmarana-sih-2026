@@ -150,3 +150,147 @@ export function buildInsights(attempts: AttemptRecord[]): string[] {
 
   return out.length ? out : ["Engagement is stable."];
 }
+
+// ─────────────────────────────────────────────────────────────
+// SESSION PLANNING — adaptive, fresh, anti-repetition
+// ─────────────────────────────────────────────────────────────
+
+export interface SessionPlanItem {
+  category: ActivityCategory;
+  difficulty: number;
+  reason: string;
+}
+
+export interface SessionPlan {
+  items: SessionPlanItem[];
+  summary: string;
+}
+
+/**
+ * Per-skill performance summary from recent attempts.
+ */
+interface SkillStats {
+  category: ActivityCategory;
+  avgAccuracy: number;
+  count: number;
+  lastDifficulty: number;
+  skips: number;
+}
+
+function skillStats(attempts: AttemptRecord[]): Map<ActivityCategory, SkillStats> {
+  const byCat = new Map<ActivityCategory, AttemptRecord[]>();
+  for (const a of attempts) {
+    const arr = byCat.get(a.category) ?? [];
+    arr.push(a);
+    byCat.set(a.category, arr);
+  }
+  const out = new Map<ActivityCategory, SkillStats>();
+  for (const [cat, arr] of byCat) {
+    out.set(cat, {
+      category: cat,
+      avgAccuracy: avg(arr.map((a) => a.accuracy)),
+      count: arr.length,
+      lastDifficulty: arr[0]?.difficulty ?? 2,
+      skips: arr.filter((a) => a.skipped).length,
+    });
+  }
+  return out;
+}
+
+/**
+ * Build a fresh 3-activity session plan that:
+ *  - rotates categories across sessions (anti-repetition)
+ *  - reinforces weak skills more often
+ *  - adapts difficulty per skill based on recent accuracy
+ *  - avoids the exact same category combination as recent sessions
+ *
+ * `recentCategories` = the categories practiced in the last few sessions
+ * (most-recent first), used to avoid repeating the same combo.
+ */
+export function planSession(
+  attempts: AttemptRecord[],
+  recentCategories: ActivityCategory[] = []
+): SessionPlan {
+  const stats = skillStats(attempts);
+  const recentSet = new Set(recentCategories.slice(0, 3));
+
+  // Score each category: weak skills score higher (need reinforcement),
+  // recently-practiced skills score lower (rotation). Skills never practiced
+  // get a moderate score so they get a turn.
+  const scored = CATEGORY_ORDER.map((cat) => {
+    const s = stats.get(cat);
+    let score: number;
+    if (!s) {
+      score = 0.5; // never practiced — give it a turn
+    } else {
+      // weak accuracy → higher priority; but cap so we don't overwhelm
+      const weakness = 1 - s.avgAccuracy; // 0 (strong) .. 1 (weak)
+      const recencyPenalty = recentSet.has(cat) ? 0.4 : 0;
+      score = weakness - recencyPenalty;
+    }
+    return { cat, score };
+  }).sort((a, b) => b.score - a.score);
+
+  // Pick 3 distinct categories: top-2 by weakness (reinforce weak skills),
+  // plus 1 from the remaining pool that hasn't been used recently (rotation).
+  const picked: ActivityCategory[] = [];
+  for (const { cat } of scored) {
+    if (picked.length >= 3) break;
+    // Allow a weak skill to recur even if recent, but prefer fresh ones for slot 3
+    if (picked.length < 2 || !recentSet.has(cat)) {
+      picked.push(cat);
+    }
+  }
+  // fill remaining slots from the rest
+  for (const { cat } of scored) {
+    if (picked.length >= 3) break;
+    if (!picked.includes(cat)) picked.push(cat);
+  }
+
+  const items: SessionPlanItem[] = picked.map((cat) => {
+    const s = stats.get(cat);
+    const lastDiff = s?.lastDifficulty ?? 2;
+    const acc = s?.avgAccuracy ?? 0.7;
+    let difficulty = lastDiff;
+    let reason: string;
+
+    if (!s) {
+      difficulty = 2;
+      reason = "A fresh cognitive skill to explore.";
+    } else if (acc >= 0.8 && s.skips === 0 && lastDiff < 5) {
+      difficulty = lastDiff + 1;
+      reason = "Strong recent accuracy — slightly increasing the challenge.";
+    } else if (acc < 0.5 && lastDiff > 1) {
+      difficulty = lastDiff - 1;
+      reason = "Simplifying slightly to keep this skill comfortable.";
+    } else if (s.skips >= 2 && lastDiff > 1) {
+      difficulty = lastDiff - 1;
+      reason = "Offering an easier option after a couple of skipped sessions.";
+    } else {
+      reason = "Maintaining the current level for this skill.";
+    }
+
+    return { category: cat, difficulty, reason };
+  });
+
+  const labels = items.map((i) => skillLabel(i.category));
+  const summary = `This session: ${labels.join(" · ")}.`;
+
+  return { items, summary };
+}
+
+function skillLabel(cat: ActivityCategory): string {
+  const map: Record<ActivityCategory, string> = {
+    recognition: "Recognition",
+    recall: "Memory Recall",
+    attention: "Attention",
+    counting: "Counting",
+    spatial: "Spatial Awareness",
+    sequencing: "Sequencing",
+    concentration: "Concentration",
+    language: "Language",
+    problem_solving: "Problem Solving",
+    story: "Story",
+  };
+  return map[cat] ?? cat;
+}

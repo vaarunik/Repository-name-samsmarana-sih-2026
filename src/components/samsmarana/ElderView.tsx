@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Home,
   ListChecks,
@@ -18,6 +18,13 @@ import {
   Sparkles,
   BookOpen,
   ListOrdered,
+  Eye,
+  Brain,
+  Focus,
+  Hash,
+  Puzzle,
+  Languages,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -48,7 +55,7 @@ import {
   SCENE_META,
 } from "@/lib/activities-data";
 import { LANGUAGES } from "@/lib/i18n";
-import { recommend } from "@/lib/adaptive";
+import { recommend, planSession, type SessionPlan } from "@/lib/adaptive";
 import { STORY_GAMES, recommendedStories, type StoryGame } from "@/lib/story-games-data";
 import { SEQUENCING_ACTIVITIES, sequencingById, type SequencingActivity } from "@/lib/sequencing-data";
 import { toast } from "sonner";
@@ -58,6 +65,11 @@ import type {
   AttemptRecord,
   ReminderItem,
 } from "@/lib/types";
+
+// Category → icon lookup for the adaptive session plan cards.
+const ICONS_FOR: Record<string, React.ComponentType<{ className?: string }>> = {
+  Eye, Brain, Focus, Hash, Puzzle, ListOrdered, Languages, Target, Compass,
+};
 
 type Tab = "home" | "activities" | "reminders" | "progress" | "profile";
 
@@ -74,6 +86,14 @@ export function ElderView() {
   const [launched, setLaunched] = useState<Launched | null>(null);
 
   const recommendation = recommend(attempts);
+
+  // Adaptive session plan — pure function of recent attempts, so useMemo
+  // avoids re-planning during a session. Each new visit (new attempts in the
+  // store) produces a fresh, balanced 3-activity combination.
+  const sessionPlan = useMemo<SessionPlan>(
+    () => planSession(attempts),
+    [attempts]
+  );
 
   useEffect(() => {
     syncPending();
@@ -211,6 +231,46 @@ export function ElderView() {
                 <StatCard icon={Clock} label="Activities today" value={String(doneToday(attempts))} tone="sky" />
               </div>
             </div>
+
+            {/* Adaptive session plan — fresh, balanced 3-activity combination */}
+            {sessionPlan && sessionPlan.items.length > 0 && (
+              <div className="mt-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="font-serif text-xl font-semibold text-foreground">Today&apos;s session</h2>
+                  <span className="text-xs text-muted-foreground">{sessionPlan.summary}</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {sessionPlan.items.map((item, i) => {
+                    const meta = CATEGORY_META[item.category];
+                    const Icon = ICONS_FOR[meta?.icon] ?? Sparkles;
+                    const a = ACTIVITIES.find((x) => x.category === item.category);
+                    return (
+                      <Card key={i} className="flex h-full flex-col p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                            <Icon className="h-4.5 w-4.5" />
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            Level {item.difficulty}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 font-medium text-foreground">{meta?.label}</h3>
+                        <p className="mt-0.5 flex-1 text-xs text-muted-foreground">{item.reason}</p>
+                        {a && (
+                          <Button
+                            size="sm"
+                            className="mt-3 gap-1 bg-primary text-primary-foreground"
+                            onClick={() => setLaunched({ kind: "standard", activity: a })}
+                          >
+                            Start <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6">
               <h2 className="mb-3 font-serif text-xl font-semibold text-foreground">Quick activities</h2>

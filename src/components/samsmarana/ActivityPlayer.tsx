@@ -23,7 +23,7 @@ import { useVoiceSpeed } from "@/lib/voice";
 import { useApp } from "@/lib/store";
 import { recordAttempt } from "@/lib/sync";
 import { buildQuestions, sceneObjects } from "@/lib/questions";
-import { SCENE_META } from "@/lib/activities-data";
+import { SCENE_META, CATEGORY_META } from "@/lib/activities-data";
 import type { ActivityTemplate } from "@/lib/activities-data";
 import type { AttemptRecord, Question } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,8 +57,14 @@ export function ActivityPlayer({
   const profile = useApp((s) => s.profile);
   const [speed, setSpeed] = useVoiceSpeed();
   const [phase, setPhase] = useState<Phase>("intro");
+  // Adaptive question set: 3–5 varied questions per session, rotating content
+  // so the same activity produces different questions across sessions.
   const questions = useMemo<Question[]>(
-    () => buildQuestions(activity.scene, activity.category, activity.difficulty),
+    () =>
+      buildQuestions(activity.scene, activity.category, activity.difficulty, {
+        minQuestions: 3,
+        maxQuestions: 5,
+      }),
     [activity]
   );
   const [qi, setQi] = useState(0);
@@ -390,6 +396,7 @@ export function ActivityPlayer({
   const headline =
     accuracy >= 0.8 ? "Well done!" : accuracy >= 0.5 ? "Nice effort." : "That's okay. Let's try another one.";
   const sub = `${correct} of ${questions.length} correct.`;
+  const skillName = CATEGORY_META[activity.category]?.label ?? activity.category;
   return (
     <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
       <Card className="p-8 text-center">
@@ -403,6 +410,9 @@ export function ActivityPlayer({
         </motion.span>
         <h2 className="mt-4 font-serif text-3xl font-semibold text-foreground">{headline}</h2>
         <p className="mt-1 text-muted-foreground">{sub}</p>
+        <p className="mt-2 text-sm font-medium text-emerald-700">
+          Cognitive skill practiced: {skillName}
+        </p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
           <Stat label="Accuracy" value={`${Math.round(accuracy * 100)}%`} />
           <Stat label="Time" value={`${Math.round(responseMs / 1000)}s`} />
@@ -430,7 +440,7 @@ export function ActivityPlayer({
             className="h-12 gap-1.5 bg-primary text-primary-foreground"
             onClick={onExit}
           >
-            <Trophy className="h-4 w-4" /> Done
+            <ArrowRight className="h-4 w-4" /> Try another activity
           </Button>
         </div>
       </Card>
