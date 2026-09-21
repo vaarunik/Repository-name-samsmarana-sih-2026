@@ -54,7 +54,7 @@ import {
   INTERESTS,
   SCENE_META,
 } from "@/lib/activities-data";
-import { LANGUAGES } from "@/lib/i18n";
+import { LANGUAGES, useT } from "@/lib/i18n";
 import { recommend, planSession, type SessionPlan } from "@/lib/adaptive";
 import { STORY_GAMES, recommendedStories, type StoryGame } from "@/lib/story-games-data";
 import { SEQUENCING_ACTIVITIES, sequencingById, type SequencingActivity } from "@/lib/sequencing-data";
@@ -86,6 +86,7 @@ export function ElderView() {
   const [launched, setLaunched] = useState<Launched | null>(null);
 
   const recommendation = recommend(attempts);
+  const t = useT();
 
   // Adaptive session plan — pure function of recent attempts, so useMemo
   // avoids re-planning during a session. Each new visit (new attempts in the
@@ -127,11 +128,11 @@ export function ElderView() {
         {/* tabs */}
         <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-border/60 bg-card p-1 shadow-soft">
           {([
-            ["home", "Home", Home],
-            ["activities", "Activities", ListChecks],
-            ["reminders", "Reminders", Bell],
-            ["progress", "Progress", TrendingUp],
-            ["profile", "Profile", UserRound],
+            ["home", t("nav.home"), Home],
+            ["activities", t("nav.activities"), ListChecks],
+            ["reminders", t("nav.reminders"), Bell],
+            ["progress", t("nav.progress"), TrendingUp],
+            ["profile", t("nav.profile"), UserRound],
           ] as [Tab, string, typeof Home][]).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -159,9 +160,9 @@ export function ElderView() {
                       {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}
                     </p>
                     <h1 className="mt-1 font-serif text-3xl font-semibold text-foreground">
-                      Welcome, {profile?.name}
+                      {t("elder.welcome")}, {profile?.name}
                     </h1>
-                    <p className="mt-1 text-muted-foreground">What can I do now?</p>
+                    <p className="mt-1 text-muted-foreground">{t("elder.whatNow")}</p>
 
                     <Card className="mt-5 border-emerald-200 bg-white/70 p-5 backdrop-blur">
                       <div className="flex items-start justify-between gap-3">
@@ -215,7 +216,7 @@ export function ElderView() {
                               className="gap-1.5 bg-primary text-primary-foreground"
                               onClick={() => setLaunched({ kind: "standard", activity: recActivity })}
                             >
-                              Start activity <ArrowRight className="h-4 w-4" />
+                              {t("action.startActivity")} <ArrowRight className="h-4 w-4" />
                             </Button>
                           </>
                         )}
@@ -226,9 +227,9 @@ export function ElderView() {
               </div>
 
               <div className="space-y-4">
-                <StatCard icon={Flame} label="Day streak" value={String(streak(attempts))} tone="emerald" />
-                <StatCard icon={Target} label="Avg accuracy" value={`${pct(avgAccuracy(attempts))}%`} tone="teal" />
-                <StatCard icon={Clock} label="Activities today" value={String(doneToday(attempts))} tone="sky" />
+                <StatCard icon={Flame} label={t("stat.dayStreak")} value={String(streak(attempts))} tone="emerald" />
+                <StatCard icon={Target} label={t("stat.avgAccuracy")} value={`${pct(avgAccuracy(attempts))}%`} tone="teal" />
+                <StatCard icon={Clock} label={t("stat.activitiesToday")} value={String(doneToday(attempts))} tone="sky" />
               </div>
             </div>
 
@@ -273,7 +274,7 @@ export function ElderView() {
             )}
 
             <div className="mt-6">
-              <h2 className="mb-3 font-serif text-xl font-semibold text-foreground">Quick activities</h2>
+              <h2 className="mb-3 font-serif text-xl font-semibold text-foreground">{t("elder.quickActivities")}</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {ACTIVITIES.filter((a) => a.category !== "story").slice(0, 6).map((a) => (
                   <ActivityCard
@@ -293,7 +294,7 @@ export function ElderView() {
             {/* ── Cognitive Activities ── */}
             <div className="mb-2 flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-emerald-700" />
-              <h1 className="font-serif text-2xl font-semibold text-foreground">Cognitive Activities</h1>
+              <h1 className="font-serif text-2xl font-semibold text-foreground">{t("elder.cognitiveActivities")}</h1>
             </div>
             <p className="mb-5 text-sm text-muted-foreground">
               Visual memory activities — observe, then answer from memory.
@@ -319,7 +320,7 @@ export function ElderView() {
             {/* ── Story Games ── */}
             <div className="mt-10 mb-2 flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-teal-700" />
-              <h2 className="font-serif text-2xl font-semibold text-foreground">Story Games</h2>
+              <h2 className="font-serif text-2xl font-semibold text-foreground">{t("elder.storyGames")}</h2>
             </div>
             <p className="mb-5 text-sm text-muted-foreground">
               Short visual stories designed around familiar everyday experiences.
@@ -604,6 +605,7 @@ function ProfileTab() {
   const setProfile = useApp((s) => s.setProfile);
   const setView = useApp((s) => s.setView);
   const reset = useApp((s) => s.reset);
+  const t = useT();
   const [name, setName] = useState(profile?.name ?? "");
   const [language, setLanguage] = useState(profile?.language ?? "en");
   const [regionGroup, setRegionGroup] = useState(profile?.regionGroup ?? "South India");
@@ -633,20 +635,20 @@ function ProfileTab() {
 
   return (
     <FadeIn>
-      <h1 className="mb-1 font-serif text-2xl font-semibold text-foreground">Profile</h1>
-      <p className="mb-5 text-sm text-muted-foreground">Adjust language, region and interests anytime.</p>
+      <h1 className="mb-1 font-serif text-2xl font-semibold text-foreground">{t("profile.title")}</h1>
+      <p className="mb-5 text-sm text-muted-foreground">{t("profile.desc")}</p>
       <Card className="p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
-            <Label>Name</Label>
+            <Label>{t("profile.name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Age</Label>
+            <Label>{t("profile.age")}</Label>
             <Input value={profile.age} disabled />
           </div>
           <div className="space-y-1">
-            <Label>Language</Label>
+            <Label>{t("profile.language")}</Label>
             <Select value={language} onValueChange={setLanguage}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -657,7 +659,7 @@ function ProfileTab() {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Region group</Label>
+            <Label>{t("profile.regionGroup")}</Label>
             <Select
               value={regionGroup}
               onValueChange={(v) => {
@@ -675,7 +677,7 @@ function ProfileTab() {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>State</Label>
+            <Label>{t("profile.state")}</Label>
             <Select value={regionState} onValueChange={setRegionState}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -687,7 +689,7 @@ function ProfileTab() {
           </div>
         </div>
         <div className="mt-4 space-y-1">
-          <Label>Interests</Label>
+          <Label>{t("profile.interests")}</Label>
           <div className="flex flex-wrap gap-2">
             {INTERESTS.map((i) => {
               const on = interests.includes(i);
@@ -705,9 +707,9 @@ function ProfileTab() {
         </div>
         <div className="mt-5 flex items-center justify-between">
           <Button variant="outline" className="gap-1.5 text-rose-600" onClick={signOut}>
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-4 w-4" /> {t("profile.signOut")}
           </Button>
-          <Button className="bg-primary text-primary-foreground" onClick={save}>Save changes</Button>
+          <Button className="bg-primary text-primary-foreground" onClick={save}>{t("profile.saveChanges")}</Button>
         </div>
       </Card>
     </FadeIn>

@@ -24,6 +24,7 @@ import { useApp } from "@/lib/store";
 import { recordAttempt } from "@/lib/sync";
 import { buildQuestions, sceneObjects } from "@/lib/questions";
 import { SCENE_META, CATEGORY_META } from "@/lib/activities-data";
+import { useT } from "@/lib/i18n";
 import type { ActivityTemplate } from "@/lib/activities-data";
 import type { AttemptRecord, Question } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +57,7 @@ export function ActivityPlayer({
 }) {
   const profile = useApp((s) => s.profile);
   const [speed, setSpeed] = useVoiceSpeed();
+  const t = useT();
   const [phase, setPhase] = useState<Phase>("intro");
 
   // ── Per-user 30-day stimulus rotation ──
@@ -282,7 +284,7 @@ export function ActivityPlayer({
       <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
         <PhaseIndicator current="observe" />
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">Look carefully</h2>
+          <h2 className="font-serif text-xl font-semibold text-foreground">{t("activity.lookCarefully")}</h2>
           {/* gentle dot timer — no stressful countdown */}
           <div className="flex items-center gap-1.5" aria-label="observation timer">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -432,7 +434,7 @@ export function ActivityPlayer({
             className="mt-5 h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
             onClick={nextQuestion}
           >
-            {qi < questions.length - 1 ? "Next question" : "See results"}
+            {qi < questions.length - 1 ? t("activity.nextQuestion") : t("activity.seeResults")}
             <ArrowRight className="h-5 w-5" />
           </Button>
         </Card>
@@ -486,14 +488,14 @@ export function ActivityPlayer({
               setPhase("intro");
             }}
           >
-            <RotateCw className="h-4 w-4" /> Try again
+            <RotateCw className="h-4 w-4" /> {t("activity.tryAgain")}
           </Button>
           <Button
             size="lg"
             className="h-12 gap-1.5 bg-primary text-primary-foreground"
             onClick={onExit}
           >
-            <ArrowRight className="h-4 w-4" /> Try another activity
+            <ArrowRight className="h-4 w-4" /> {t("activity.tryAnother")}
           </Button>
         </div>
       </Card>
