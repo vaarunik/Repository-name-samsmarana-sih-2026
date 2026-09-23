@@ -582,6 +582,34 @@ export function useT(): (key: string) => string {
   return (key: string) => t(lang, key);
 }
 
+/** A translated string with its English caption (when the language is not English). */
+export interface CaptionedText {
+  text: string;
+  caption: string | null;
+}
+
+/**
+ * React hook that returns a function producing captioned text: the selected
+ * language's translation as the primary text, and the English translation as
+ * a smaller caption underneath (only when the selected language is not English).
+ *
+ * Usage:
+ *   const tc = useTC();
+ *   <h1>{tc("elder.welcome").text}</h1>
+ *   {tc("elder.welcome").caption && <p className="text-xs">{tc("elder.welcome").caption}</p>}
+ */
+export function useTC(): (key: string) => CaptionedText {
+  const lang = useApp((s) => s.profile?.language ?? "en") as LanguageCode;
+  return (key: string): CaptionedText => {
+    const text = t(lang, key);
+    const caption = lang !== "en" ? t("en", key) : null;
+    // If the translation fell back to English (no native translation exists),
+    // don't show a redundant English caption.
+    if (caption !== null && text === caption) return { text, caption: null };
+    return { text, caption };
+  };
+}
+
 /**
  * Get the current user's language code (for non-React contexts).
  */

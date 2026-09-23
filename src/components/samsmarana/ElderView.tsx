@@ -25,6 +25,7 @@ import {
   Puzzle,
   Languages,
   Compass,
+  Apple,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,6 +46,9 @@ import { StoryActivity } from "./StoryActivity";
 import { StoryGamePlayer } from "./StoryGamePlayer";
 import { SequencingPlayer } from "./SequencingPlayer";
 import { VideoComingSoon } from "./VideoComingSoon";
+import { PuzzleGamePlayer } from "./PuzzleGamePlayer";
+import { MemoryMatchGame } from "./MemoryMatchGame";
+import { SnakeGame } from "./SnakeGame";
 import { useApp } from "@/lib/store";
 import { syncPending } from "@/lib/sync";
 import {
@@ -54,7 +58,7 @@ import {
   INTERESTS,
   SCENE_META,
 } from "@/lib/activities-data";
-import { LANGUAGES, useT } from "@/lib/i18n";
+import { LANGUAGES, useT, useTC } from "@/lib/i18n";
 import { recommend, planSession, type SessionPlan } from "@/lib/adaptive";
 import { STORY_GAMES, recommendedStories, type StoryGame } from "@/lib/story-games-data";
 import { SEQUENCING_ACTIVITIES, sequencingById, type SequencingActivity } from "@/lib/sequencing-data";
@@ -77,7 +81,10 @@ type Launched =
   | { kind: "standard"; activity: ActivityTemplate }
   | { kind: "video"; activity: ActivityTemplate }
   | { kind: "storygame"; story: StoryGame }
-  | { kind: "sequencing"; activity: SequencingActivity };
+  | { kind: "sequencing"; activity: SequencingActivity }
+  | { kind: "puzzle" }
+  | { kind: "memorymatch" }
+  | { kind: "snake" };
 
 export function ElderView() {
   const profile = useApp((s) => s.profile);
@@ -87,6 +94,7 @@ export function ElderView() {
 
   const recommendation = recommend(attempts);
   const t = useT();
+  const tc = useTC();
 
   // Adaptive session plan — pure function of recent attempts, so useMemo
   // avoids re-planning during a session. Each new visit (new attempts in the
@@ -106,6 +114,15 @@ export function ElderView() {
     }
     if (launched.kind === "sequencing") {
       return <SequencingPlayer activity={launched.activity} onExit={() => setLaunched(null)} />;
+    }
+    if (launched.kind === "puzzle") {
+      return <PuzzleGamePlayer onExit={() => setLaunched(null)} />;
+    }
+    if (launched.kind === "memorymatch") {
+      return <MemoryMatchGame onExit={() => setLaunched(null)} />;
+    }
+    if (launched.kind === "snake") {
+      return <SnakeGame onExit={() => setLaunched(null)} />;
     }
     if (launched.kind === "video") {
       return (
@@ -160,9 +177,17 @@ export function ElderView() {
                       {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}
                     </p>
                     <h1 className="mt-1 font-serif text-3xl font-semibold text-foreground">
-                      {t("elder.welcome")}, {profile?.name}
+                      {tc("elder.welcome").text}, {profile?.name}
                     </h1>
-                    <p className="mt-1 text-muted-foreground">{t("elder.whatNow")}</p>
+                    {tc("elder.welcome").caption && (
+                      <p className="text-xs text-muted-foreground">{tc("elder.welcome").caption}, {profile?.name}</p>
+                    )}
+                    <p className="mt-1 text-muted-foreground">
+                      {tc("elder.whatNow").text}
+                      {tc("elder.whatNow").caption && (
+                        <span className="block text-xs text-muted-foreground/70">{tc("elder.whatNow").caption}</span>
+                      )}
+                    </p>
 
                     <Card className="mt-5 border-emerald-200 bg-white/70 p-5 backdrop-blur">
                       <div className="flex items-start justify-between gap-3">
@@ -338,6 +363,42 @@ export function ElderView() {
           </FadeIn>
         )}
 
+        {tab === "activities" && (
+          <FadeIn>
+            {/* ── Brain Games (new adaptive games) ── */}
+            <div className="mt-10 mb-2 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-700" />
+              <h2 className="font-serif text-2xl font-semibold text-foreground">Brain Games</h2>
+            </div>
+            <p className="mb-5 text-sm text-muted-foreground">
+              Adaptive games that change every time — puzzles, memory match, and a gentle snake game.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <BrainGameCard
+                icon={Puzzle}
+                title="Puzzle Games"
+                description="Odd-one-out, patterns, sequences & more."
+                difficulty="Adaptive"
+                onStart={() => setLaunched({ kind: "puzzle" })}
+              />
+              <BrainGameCard
+                icon={Target}
+                title="Memory Match"
+                description="Find matching pairs of cards."
+                difficulty="Adaptive"
+                onStart={() => setLaunched({ kind: "memorymatch" })}
+              />
+              <BrainGameCard
+                icon={Apple}
+                title="Snake Game"
+                description="A slow, gentle snake game. Eat apples!"
+                difficulty="Adaptive"
+                onStart={() => setLaunched({ kind: "snake" })}
+              />
+            </div>
+          </FadeIn>
+        )}
+
         {tab === "reminders" && <RemindersTab />}
         {tab === "progress" && <ProgressTab />}
         {tab === "profile" && <ProfileTab />}
@@ -428,6 +489,40 @@ function StoryGameCard({
             <BookOpen className="h-3.5 w-3.5" /> Play story <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
+      </div>
+    </Card>
+  );
+}
+
+function BrainGameCard({
+  icon: Icon,
+  title,
+  description,
+  difficulty,
+  onStart,
+}: {
+  icon: typeof Home;
+  title: string;
+  description: string;
+  difficulty: string;
+  onStart: () => void;
+}) {
+  return (
+    <Card className="flex h-full flex-col p-4">
+      <div className="flex items-center justify-between">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+          {difficulty}
+        </span>
+      </div>
+      <h3 className="mt-2 font-medium text-foreground">{title}</h3>
+      <p className="mt-0.5 flex-1 text-sm text-muted-foreground">{description}</p>
+      <div className="mt-3">
+        <Button size="sm" className="gap-1 bg-primary text-primary-foreground" onClick={onStart}>
+          Start <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </Card>
   );
