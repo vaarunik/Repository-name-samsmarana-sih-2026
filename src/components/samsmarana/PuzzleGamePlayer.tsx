@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, X, RotateCw, Trophy, Puzzle, EyeOff, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n";
 import { useApp } from "@/lib/store";
 import { recordAttempt } from "@/lib/sync";
 import { buildPuzzleSet, adaptiveDifficulty, type PuzzleQuestion } from "@/lib/puzzle-data";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 type Phase = "intro" | "observe" | "question" | "feedback" | "complete";
 
@@ -26,9 +26,10 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
   const [questions, setQuestions] = useState<PuzzleQuestion[]>([]);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<(boolean | null)[]>([]);
-  const [observeTimer, setObserveTimer] = useState(0);
+  const [observeTimer, setObserveTimer] = useState(5);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const observeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [seqOrder, setSeqOrder] = useState<number[]>([]);
 
   useEffect(() => {
     return () => {
@@ -42,9 +43,13 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
     setQuestions(qs);
     setQi(0);
     setAnswers([]);
-    setPhase(qs[0].type === "remember_find" || qs[0].type === "missing_object" ? "observe" : "question");
-    if (qs[0].type === "remember_find" || qs[0].type === "missing_object") {
+    setSeqOrder([]);
+    const firstNeedsObserve = qs[0].type === "visual_recognition" || qs[0].type === "visual_missing_scene" || qs[0].type === "visual_counting";
+    if (firstNeedsObserve && qs[0].stimulusImage) {
+      setPhase("observe");
       startObserveTimer();
+    } else {
+      setPhase("question");
     }
   }
 
@@ -71,9 +76,12 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     feedbackTimer.current = setTimeout(() => {
       if (qi < questions.length - 1) {
-        setQi(qi + 1);
-        const nextQ = questions[qi + 1];
-        if (nextQ && (nextQ.type === "remember_find" || nextQ.type === "missing_object")) {
+        const nextQi = qi + 1;
+        setQi(nextQi);
+        setSeqOrder([]);
+        const nextQ = questions[nextQi];
+        const needsObserve = nextQ.type === "visual_recognition" || nextQ.type === "visual_missing_scene" || nextQ.type === "visual_counting";
+        if (needsObserve && nextQ.stimulusImage) {
           setPhase("observe");
           startObserveTimer();
         } else {
@@ -82,7 +90,7 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
       } else {
         finish(next);
       }
-    }, 1500);
+    }, 1800);
   }
 
   function selectAnswer(idx: number) {
@@ -90,20 +98,17 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
     answer(idx === currentQ.answerIndex);
   }
 
-  // Sequence puzzle: user arranges by clicking in order
-  const [seqOrder, setSeqOrder] = useState<number[]>([]);
   function toggleSeqItem(idx: number) {
     if (seqOrder.includes(idx)) {
       setSeqOrder(seqOrder.filter((i) => i !== idx));
     } else {
       const newOrder = [...seqOrder, idx];
       setSeqOrder(newOrder);
-      if (newOrder.length === currentQ.options.length) {
-        // Check if correct
-        const correct = currentQ.correctSequence ?? [];
-        const userSeq = newOrder.map((i) => currentQ.options[i]);
-        const isCorrect = correct.every((item, i) => userSeq[i] === item);
-        setTimeout(() => answer(isCorrect), 300);
+      if (newOrder.length === (currentQ?.shuffledSequence?.length ?? 0)) {
+        const correct = currentQ?.correctSequence ?? [];
+        const userSeq = newOrder.map((i) => currentQ!.shuffledSequence![i]);
+        const isCorrect = correct.every((item, i) => userSeq[i].image === item.image);
+        setTimeout(() => answer(isCorrect), 400);
       }
     }
   }
@@ -111,12 +116,8 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
   async function finish(finalAnswers: (boolean | null)[]) {
     const correct = finalAnswers.filter((a) => a === true).length;
     const accuracy = finalAnswers.length ? correct / finalAnswers.length : 0;
-    // Adaptive difficulty
     const newDiff = adaptiveDifficulty(difficulty, accuracy);
     setDifficulty(newDiff);
-    // Record attempt
-    const { recordAttempt } = await import("@/lib/sync");
-    const { v4: uuidv4 } = await import("uuid");
     recordAttempt({
       id: crypto.randomUUID(),
       profileId: profile?.id ?? "anon",
@@ -142,15 +143,15 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
       <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
         <Card className="overflow-hidden p-0">
           <div className="relative bg-gradient-to-br from-teal-600 to-emerald-600 p-8 text-white">
-            <Badge className="bg-white/20 text-white">{t("elder.cognitiveActivities")}</Badge>
-            <h2 className="mt-3 font-serif text-3xl font-semibold">Puzzle Games</h2>
-            <p className="mt-1 text-white/85">Adaptive puzzles that change every time — odd-one-out, patterns, sequences, and more.</p>
+            <Badge className="bg-white/20 text-white">Visual Puzzles</Badge>
+            <h2 className="mt-3 font-serif text-3xl font-semibold">Visual Puzzle Games</h2>
+            <p className="mt-1 text-white/85">Look at real photographs, memorize, and solve visual puzzles — odd-one-out, patterns, sequences, counting & more.</p>
           </div>
           <div className="p-6">
-            <p className="text-base text-foreground">Each session has 4 varied puzzles. Difficulty adapts to your performance.</p>
+            <p className="text-base text-foreground">Each session has 4 varied visual puzzles with real photographs. Difficulty adapts to your performance.</p>
             <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5">Level {difficulty}</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">4 puzzles</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">4 visual puzzles</span>
             </div>
             <Button size="lg" className="mt-6 h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground" onClick={startSession}>
               <Puzzle className="h-5 w-5" /> Start puzzles <ArrowRight className="h-5 w-5" />
@@ -161,26 +162,86 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
     );
   }
 
-  // ── OBSERVE (for remember-find / missing-object) ──
+  // ── OBSERVE (show the stimulus image) ──
   if (phase === "observe" && currentQ) {
+    // For pattern puzzles: show the pattern as a row of images
+    if (currentQ.type === "visual_pattern" && currentQ.stimulusImage?.includes(",")) {
+      const patternImages = currentQ.stimulusImage.split(",");
+      return (
+        <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-serif text-xl font-semibold text-foreground">Look at the pattern</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700">
+              <Eye className="h-4 w-4" /> {observeTimer}s
+            </span>
+          </div>
+          <Card className="p-6">
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {patternImages.map((img, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  { }
+                  <img src={img} alt={`Pattern ${i + 1}`} className="h-32 w-44 rounded-xl object-cover shadow-soft" />
+                  {i < patternImages.length - 1 && <span className="text-2xl text-muted-foreground">→</span>}
+                </div>
+              ))}
+              <div className="flex h-32 w-44 items-center justify-center rounded-xl border-4 border-dashed border-emerald-300 bg-emerald-50/50">
+                <span className="text-4xl text-emerald-400">?</span>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-sm text-muted-foreground">Study the pattern…</p>
+          </Card>
+          <Button size="lg" variant="outline" className="mt-4 h-12 gap-2" onClick={() => { if (observeTimerRef.current) clearInterval(observeTimerRef.current); setPhase("question"); }}>
+            <EyeOff className="h-4 w-4" /> I'm ready
+          </Button>
+        </Shell>
+      );
+    }
+
+    // For missing-scene: show the scenes
+    if (currentQ.type === "visual_missing_scene" && currentQ.shownScenes) {
+      return (
+        <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-serif text-xl font-semibold text-foreground">Look at these pictures</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700">
+              <Eye className="h-4 w-4" /> {observeTimer}s
+            </span>
+          </div>
+          <Card className="p-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {currentQ.shownScenes.map((s, i) => (
+                <div key={i} className="overflow-hidden rounded-xl shadow-soft">
+                  { }
+                  <img src={s.image} alt={s.label} className="aspect-video w-full object-cover" />
+                  <p className="bg-muted/30 p-2 text-center text-sm font-medium">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-center text-sm text-muted-foreground">Memorize these pictures…</p>
+          </Card>
+          <Button size="lg" variant="outline" className="mt-4 h-12 gap-2" onClick={() => { if (observeTimerRef.current) clearInterval(observeTimerRef.current); setPhase("question"); }}>
+            <EyeOff className="h-4 w-4" /> I'm ready
+          </Button>
+        </Shell>
+      );
+    }
+
+    // Standard observe: show a single stimulus image
     return (
       <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">Look at these objects</h2>
+          <h2 className="font-serif text-xl font-semibold text-foreground">Look carefully</h2>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700">
             <Eye className="h-4 w-4" /> {observeTimer}s
           </span>
         </div>
-        <Card className="p-6">
-          <div className="flex flex-wrap justify-center gap-3">
-            {(currentQ.shownObjects ?? []).map((obj, i) => (
-              <div key={i} className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4 text-lg font-medium capitalize text-foreground shadow-soft">
-                {obj}
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-center text-sm text-muted-foreground">Memorize these objects…</p>
+        <Card className="overflow-hidden p-0">
+          {currentQ.stimulusImage && (
+             
+            <img src={currentQ.stimulusImage} alt={currentQ.stimulusLabel ?? "Scene"} className="aspect-video w-full object-cover" />
+          )}
         </Card>
+        <p className="mt-3 text-center text-sm text-muted-foreground">Study the picture carefully…</p>
         <Button size="lg" variant="outline" className="mt-4 h-12 gap-2" onClick={() => { if (observeTimerRef.current) clearInterval(observeTimerRef.current); setPhase("question"); }}>
           <EyeOff className="h-4 w-4" /> I'm ready
         </Button>
@@ -190,7 +251,6 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
 
   // ── QUESTION ──
   if (phase === "question" && currentQ) {
-    const promptLines = currentQ.prompt.split("\n");
     return (
       <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
         <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
@@ -199,48 +259,66 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
         </div>
         <Progress value={((qi + 1) / questions.length) * 100} className="mb-4 h-2.5" />
         <Card className="p-6">
-          {promptLines.map((line, i) => (
-            <h2 key={i} className={i === 0 ? "font-serif text-2xl font-semibold text-foreground" : "mt-2 text-lg text-muted-foreground"}>
-              {line}
-            </h2>
-          ))}
+          <h2 className="font-serif text-2xl font-semibold text-foreground">{currentQ.prompt}</h2>
 
-          {/* Sequence puzzle: arrange by clicking */}
-          {currentQ.type === "sequence" ? (
+          {/* Visual sequence: arrange images in order */}
+          {currentQ.type === "visual_sequence" && currentQ.shuffledSequence && (
             <div className="mt-5">
-              <p className="mb-3 text-sm text-muted-foreground">Click the items in the correct order:</p>
-              <div className="flex flex-wrap gap-2">
-                {currentQ.options.map((opt, i) => {
+              <p className="mb-3 text-sm text-muted-foreground">Click the pictures in the correct order:</p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {currentQ.shuffledSequence.map((s, i) => {
                   const orderIdx = seqOrder.indexOf(i);
                   return (
                     <button
                       key={i}
                       onClick={() => toggleSeqItem(i)}
-                      className={`rounded-xl border-2 px-5 py-4 text-lg font-medium transition-all ${
-                        orderIdx >= 0
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                          : "border-border bg-card hover:border-emerald-300"
+                      className={`relative overflow-hidden rounded-xl border-2 transition-all ${
+                        orderIdx >= 0 ? "border-emerald-500 ring-2 ring-emerald-200" : "border-border hover:border-emerald-300"
                       }`}
                     >
-                      {opt} {orderIdx >= 0 && <span className="ml-2 rounded-full bg-emerald-500 px-2 text-xs text-white">{orderIdx + 1}</span>}
+                      { }
+                      <img src={s.image} alt={s.label} className="aspect-video w-full object-cover" />
+                      <p className="bg-muted/30 p-1.5 text-center text-xs font-medium">{s.label}</p>
+                      {orderIdx >= 0 && (
+                        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">
+                          {orderIdx + 1}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
               {seqOrder.length > 0 && (
-                <Button size="sm" variant="ghost" className="mt-3" onClick={() => setSeqOrder([])}>
-                  Reset order
-                </Button>
+                <Button size="sm" variant="ghost" className="mt-3" onClick={() => setSeqOrder([])}>Reset order</Button>
               )}
             </div>
-          ) : (
-            /* Standard MCQ */
-            <div className="mt-5 grid gap-3">
+          )}
+
+          {/* Image-based MCQ (recognition, odd-one-out, pattern, missing-scene) */}
+          {currentQ.imageOptions && (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {currentQ.imageOptions.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => selectAnswer(i)}
+                  className="overflow-hidden rounded-xl border-2 border-border bg-card transition-all hover:border-emerald-300 hover:shadow-soft"
+                >
+                  { }
+                  <img src={opt.image} alt={opt.label} className="aspect-video w-full object-cover" />
+                  <p className="bg-muted/30 p-2 text-center text-sm font-medium">{opt.label}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Counting: number options */}
+          {currentQ.type === "visual_counting" && (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {currentQ.options.map((opt, i) => (
                 <button
                   key={i}
                   onClick={() => selectAnswer(i)}
-                  className="flex min-h-[56px] items-center rounded-2xl border-2 border-border bg-card px-5 py-4 text-left text-lg font-medium transition-all hover:border-emerald-300 hover:bg-emerald-50/40"
+                  className="flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-border bg-card px-5 py-4 text-2xl font-bold transition-all hover:border-emerald-300 hover:bg-emerald-50/40"
                 >
                   {opt}
                 </button>
@@ -269,6 +347,14 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
             {correct ? t("wellDone") : t("thatsOkay")}
           </h2>
           <p className="mt-2 rounded-xl bg-muted/60 p-4 text-base text-foreground">{currentQ.explanation}</p>
+          {/* Show the correct answer image if applicable */}
+          {currentQ.answerImage && (
+            <div className="mt-4 mx-auto max-w-xs overflow-hidden rounded-xl shadow-soft">
+              { }
+              <img src={currentQ.answerImage} alt={currentQ.answer} className="aspect-video w-full object-cover" />
+              <p className="bg-emerald-50 p-2 text-center text-sm font-medium text-emerald-700">{currentQ.answer}</p>
+            </div>
+          )}
         </Card>
       </Shell>
     );
@@ -280,18 +366,15 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
   return (
     <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
       <Card className="p-8 text-center">
-        <motion.span
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
-        >
+        <motion.span initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
           <Trophy className="h-8 w-8" />
         </motion.span>
         <h2 className="mt-4 font-serif text-3xl font-semibold text-foreground">
           {accuracy >= 0.8 ? t("wellDone") : accuracy >= 0.5 ? t("niceEffort") : t("thatsOkay")}
         </h2>
         <p className="mt-1 text-muted-foreground">{correct} of {answers.length} correct.</p>
-        <p className="mt-2 text-sm font-medium text-emerald-700">Cognitive skill practiced: Problem Solving</p>
+        <p className="mt-2 text-sm font-medium text-emerald-700">Cognitive skill practiced: Visual Problem Solving</p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
           <Stat label={t("accuracy")} value={`${Math.round(accuracy * 100)}%`} />
           <Stat label="Puzzles" value={String(answers.length)} />

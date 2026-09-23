@@ -1,41 +1,173 @@
-// SAMSMARANA — adaptive puzzle game engine
-// Generates varied puzzle content for: odd-one-out, pattern completion,
-// missing-object, remember-and-find, sequence arrangement, and shape matching.
-// Difficulty adapts based on recent accuracy.
+// SAMSMARANA — visual puzzle game engine (image-based)
+// Every puzzle uses REALISTIC PHOTOGRAPHS from /public/images/ as visual
+// stimuli. No text-only rounds, no emojis, no icons, no abstract shapes.
+// Images rotate across sessions using the full pool of scene + story images.
 
-import type { Question } from "./types";
+import type { SceneKey } from "./types";
+
+// ── Image pool: all available realistic photographs ────────────────
+export interface SceneImage {
+  id: string;
+  image: string;
+  label: string;
+  category: "nature" | "food" | "indoor" | "travel" | "community" | "cultural";
+}
+
+export const SCENE_IMAGES: SceneImage[] = [
+  { id: "garden", image: "/images/activities/garden.png", label: "Garden", category: "nature" },
+  { id: "market", image: "/images/activities/market.png", label: "Vegetable Market", category: "food" },
+  { id: "shop", image: "/images/activities/shop.png", label: "Local Shop", category: "indoor" },
+  { id: "cooking", image: "/images/activities/cooking.png", label: "Kitchen", category: "indoor" },
+  { id: "tea", image: "/images/activities/tea.png", label: "Tea Preparation", category: "food" },
+  { id: "train", image: "/images/activities/train.png", label: "Train Journey", category: "travel" },
+  { id: "nature", image: "/images/activities/nature.png", label: "Nature", category: "nature" },
+  { id: "birds", image: "/images/activities/birds.png", label: "Garden Birds", category: "nature" },
+  { id: "home", image: "/images/activities/home.png", label: "Home", category: "indoor" },
+  { id: "community", image: "/images/activities/community.png", label: "Community Courtyard", category: "community" },
+  { id: "river", image: "/images/activities/river.png", label: "River", category: "nature" },
+  { id: "festival", image: "/images/activities/festival.png", label: "Festival", category: "cultural" },
+];
+
+// Story scene images (grouped by story, for sequencing)
+export interface StorySequence {
+  storyId: string;
+  title: string;
+  images: { image: string; label: string }[];
+}
+
+export const STORY_SEQUENCES: StorySequence[] = [
+  {
+    storyId: "market",
+    title: "A Morning at the Vegetable Market",
+    images: [
+      { image: "/images/story/market/s1.png", label: "Arriving" },
+      { image: "/images/story/market/s2.png", label: "Looking" },
+      { image: "/images/story/market/s3.png", label: "Choosing" },
+      { image: "/images/story/market/s4.png", label: "Weighing" },
+      { image: "/images/story/market/s5.png", label: "Paying" },
+      { image: "/images/story/market/s6.png", label: "Packing" },
+      { image: "/images/story/market/s7.png", label: "Leaving" },
+    ],
+  },
+  {
+    storyId: "tea",
+    title: "Preparing Morning Tea",
+    images: [
+      { image: "/images/story/tea/s1.png", label: "Filling kettle" },
+      { image: "/images/story/tea/s2.png", label: "Heating water" },
+      { image: "/images/story/tea/s3.png", label: "Adding tea" },
+      { image: "/images/story/tea/s4.png", label: "Pouring tea" },
+      { image: "/images/story/tea/s5.png", label: "Tea ready" },
+      { image: "/images/story/tea/s6.png", label: "Sharing tea" },
+    ],
+  },
+  {
+    storyId: "garden",
+    title: "A Morning in the Garden",
+    images: [
+      { image: "/images/story/garden/s1.png", label: "Entering" },
+      { image: "/images/story/garden/s2.png", label: "Roses" },
+      { image: "/images/story/garden/s3.png", label: "Marigolds" },
+      { image: "/images/story/garden/s4.png", label: "Watering can" },
+      { image: "/images/story/garden/s5.png", label: "Watering" },
+      { image: "/images/story/garden/s6.png", label: "Resting" },
+    ],
+  },
+  {
+    storyId: "shop",
+    title: "A Visit to the Local Shop",
+    images: [
+      { image: "/images/story/shop/s1.png", label: "Approaching" },
+      { image: "/images/story/shop/s2.png", label: "Browsing" },
+      { image: "/images/story/shop/s3.png", label: "Asking" },
+      { image: "/images/story/shop/s4.png", label: "Items on counter" },
+      { image: "/images/story/shop/s5.png", label: "Paying" },
+      { image: "/images/story/shop/s6.png", label: "Leaving" },
+    ],
+  },
+  {
+    storyId: "meal",
+    title: "Preparing a Family Meal",
+    images: [
+      { image: "/images/story/meal/s1.png", label: "Washing" },
+      { image: "/images/story/meal/s2.png", label: "Cutting" },
+      { image: "/images/story/meal/s3.png", label: "Heating pot" },
+      { image: "/images/story/meal/s4.png", label: "Adding spices" },
+      { image: "/images/story/meal/s5.png", label: "Stirring" },
+      { image: "/images/story/meal/s6.png", label: "Serving" },
+      { image: "/images/story/meal/s7.png", label: "Family gathers" },
+    ],
+  },
+  {
+    storyId: "visit",
+    title: "A Family Visit",
+    images: [
+      { image: "/images/story/visit/s1.png", label: "Arriving" },
+      { image: "/images/story/visit/s2.png", label: "Greeting" },
+      { image: "/images/story/visit/s3.png", label: "Sitting" },
+      { image: "/images/story/visit/s4.png", label: "Serving tea" },
+      { image: "/images/story/visit/s5.png", label: "Photographs" },
+      { image: "/images/story/visit/s6.png", label: "Farewell" },
+    ],
+  },
+  {
+    storyId: "fruit",
+    title: "Going to the Fruit Market",
+    images: [
+      { image: "/images/story/fruit/s1.png", label: "Arriving" },
+      { image: "/images/story/fruit/s2.png", label: "Examining" },
+      { image: "/images/story/fruit/s3.png", label: "Handing" },
+      { image: "/images/story/fruit/s4.png", label: "Weighing" },
+      { image: "/images/story/fruit/s5.png", label: "Paying" },
+      { image: "/images/story/fruit/s6.png", label: "Leaving" },
+    ],
+  },
+  {
+    storyId: "evening",
+    title: "An Evening at Home",
+    images: [
+      { image: "/images/story/evening/s1.png", label: "Lighting lamp" },
+      { image: "/images/story/evening/s2.png", label: "Settling" },
+      { image: "/images/story/evening/s3.png", label: "Tablet" },
+      { image: "/images/story/evening/s4.png", label: "Pouring tea" },
+      { image: "/images/story/evening/s5.png", label: "Newspaper" },
+      { image: "/images/story/evening/s6.png", label: "Resting" },
+    ],
+  },
+];
 
 export type PuzzleType =
-  | "odd_one_out"
-  | "remember_find"
-  | "sequence"
-  | "pattern"
-  | "missing_object";
+  | "visual_recognition"
+  | "visual_odd_one_out"
+  | "visual_sequence"
+  | "visual_pattern"
+  | "visual_counting"
+  | "visual_missing_scene";
 
 export interface PuzzleQuestion {
   id: string;
   type: PuzzleType;
   prompt: string;
-  /** The correct answer */
-  answer: string;
-  /** All options (including the correct one), shuffled */
-  options: string[];
-  /** Index of the correct answer in options */
+  /** The main stimulus image shown during observe phase */
+  stimulusImage?: string;
+  stimulusLabel?: string;
+  /** For counting: the correct count */
+  correctCount?: number;
+  /** For MCQ: image-based options */
+  imageOptions?: { image: string; label: string }[];
+  answerImage?: string;
   answerIndex: number;
+  options: string[];
+  answer: string;
   explanation: string;
-  /** For sequence puzzles: the correct ordered sequence */
-  correctSequence?: string[];
-  /** For remember-find: the objects that were shown */
-  shownObjects?: string[];
+  /** For sequence: the correct ordered images */
+  correctSequence?: { image: string; label: string }[];
+  /** For sequence: shuffled images for the user to arrange */
+  shuffledSequence?: { image: string; label: string }[];
+  /** For missing-scene: the scenes shown */
+  shownScenes?: { image: string; label: string }[];
+  missingScene?: { image: string; label: string };
 }
-
-// ── Content pools (familiar everyday objects, food, etc.) ──────────
-const FOODS = ["apple", "banana", "mango", "rice", "bread", "tomato", "potato", "tea", "milk", "egg"];
-const HOUSEHOLD = ["cup", "plate", "spoon", "bowl", "lamp", "basket", "broom", "key", "clock", "mirror"];
-const NATURE = ["tree", "flower", "bird", "river", "hill", "cloud", "leaf", "stone", "sun", "moon"];
-const CLOTHING = ["shirt", "saree", "shoe", "hat", "sock", "scarf", "glove", "belt"];
-
-const ALL_POOLS = [FOODS, HOUSEHOLD, NATURE, CLOTHING];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -50,189 +182,199 @@ function pick<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n);
 }
 
-// ── Everyday sequences (for sequence puzzle) ───────────────────────
-const SEQUENCES: { steps: string[]; prompt: string }[] = [
-  { steps: ["Wash hands", "Serve food", "Eat food", "Clean plate"], prompt: "Arrange the steps of a meal in order." },
-  { steps: ["Boil water", "Add tea leaves", "Pour into cup", "Drink tea"], prompt: "Arrange the steps of making tea in order." },
-  { steps: ["Wake up", "Brush teeth", "Take bath", "Eat breakfast"], prompt: "Arrange the morning routine in order." },
-  { steps: ["Soil the pot", "Plant the seed", "Water the plant", "Flower blooms"], prompt: "Arrange the steps of growing a plant in order." },
-  { steps: ["Buy vegetables", "Wash vegetables", "Cut vegetables", "Cook vegetables"], prompt: "Arrange the steps of cooking vegetables in order." },
-  { steps: ["Light the lamp", "Offer flowers", "Pray", "Distribute prasad"], prompt: "Arrange the steps of a prayer in order." },
-];
+// ── Puzzle builders ────────────────────────────────────────────────
 
-// ── Pattern completion ─────────────────────────────────────────────
-const PATTERNS: { sequence: string[]; answer: string; prompt: string }[] = [
-  { sequence: ["apple", "banana", "apple", "banana", "?"], answer: "apple", prompt: "What comes next in the pattern?" },
-  { sequence: ["cup", "plate", "cup", "plate", "?"], answer: "cup", prompt: "What comes next in the pattern?" },
-  { sequence: ["tree", "tree", "flower", "tree", "tree", "?"], answer: "flower", prompt: "What comes next in the pattern?" },
-  { sequence: ["big", "small", "big", "small", "?"], answer: "big", prompt: "What comes next in the pattern?" },
-  { sequence: ["sun", "moon", "sun", "moon", "?"], answer: "sun", prompt: "What comes next in the pattern?" },
-];
-
-// ── Builders ───────────────────────────────────────────────────────
-
-function buildOddOneOut(difficulty: number): PuzzleQuestion {
-  const pool = ALL_POOLS[Math.floor(Math.random() * ALL_POOLS.length)];
-  const otherPool = ALL_POOLS.find((p) => p !== pool)!;
-  const count = Math.min(3 + Math.floor(difficulty / 2), 5);
-  const sameItems = pick(pool, count);
-  const oddOne = pick(otherPool, 1)[0];
-  const options = shuffle([...sameItems, oddOne]);
+function buildVisualRecognition(): PuzzleQuestion {
+  const target = SCENE_IMAGES[Math.floor(Math.random() * SCENE_IMAGES.length)];
+  const others = pick(SCENE_IMAGES.filter((s) => s.id !== target.id), 3);
+  const imageOptions = shuffle([target, ...others]).map((s) => ({ image: s.image, label: s.label }));
   return {
-    id: `odd-${Math.random().toString(36).slice(2, 8)}`,
-    type: "odd_one_out",
-    prompt: "Which one does NOT belong with the others?",
-    answer: oddOne,
-    options: options.map(capitalize),
-    answerIndex: options.indexOf(oddOne),
-    explanation: `The ${oddOne} is different from the ${pool[0]}s and similar items.`,
+    id: `vr-${Math.random().toString(36).slice(2, 8)}`,
+    type: "visual_recognition",
+    prompt: "Which picture did you just see?",
+    stimulusImage: target.image,
+    stimulusLabel: target.label,
+    imageOptions,
+    answerImage: target.image,
+    answerIndex: imageOptions.findIndex((o) => o.image === target.image),
+    options: imageOptions.map((o) => o.label),
+    answer: target.label,
+    explanation: `You saw the ${target.label.toLowerCase()} picture.`,
   };
 }
 
-function buildRememberFind(difficulty: number): PuzzleQuestion {
-  const pool = ALL_POOLS[Math.floor(Math.random() * ALL_POOLS.length)];
-  const showCount = Math.min(3 + Math.floor(difficulty / 2), 5);
-  const shown = pick(pool, showCount);
-  const otherPool = ALL_POOLS.find((p) => p !== pool) ?? HOUSEHOLD;
-  const wrong = pick(otherPool, 3);
-  // Ask about one of the shown objects
-  const target = shown[Math.floor(Math.random() * shown.length)];
-  const options = shuffle([target, ...wrong]);
+function buildVisualOddOneOut(): PuzzleQuestion {
+  // Pick a category, get 3 from that category + 1 from a different category
+  const categories = ["nature", "food", "indoor", "travel", "community", "cultural"];
+  const cat = categories[Math.floor(Math.random() * categories.length)];
+  const sameCategory = SCENE_IMAGES.filter((s) => s.category === cat);
+  const otherCategory = SCENE_IMAGES.filter((s) => s.category !== cat);
+  if (sameCategory.length < 3 || otherCategory.length < 1) return buildVisualRecognition();
+  const same = pick(sameCategory, 3);
+  const odd = pick(otherCategory, 1)[0];
+  const imageOptions = shuffle([...same, odd]).map((s) => ({ image: s.image, label: s.label }));
   return {
-    id: `rf-${Math.random().toString(36).slice(2, 8)}`,
-    type: "remember_find",
-    prompt: "Which object was shown to you earlier?",
-    answer: target,
-    options: options.map(capitalize),
-    answerIndex: options.indexOf(target),
-    explanation: `The ${target} was one of the objects shown to you.`,
-    shownObjects: shown,
+    id: `ooo-${Math.random().toString(36).slice(2, 8)}`,
+    type: "visual_odd_one_out",
+    prompt: "Which picture does NOT belong with the others?",
+    imageOptions,
+    answerImage: odd.image,
+    answerIndex: imageOptions.findIndex((o) => o.image === odd.image),
+    options: imageOptions.map((o) => o.label),
+    answer: odd.label,
+    explanation: `The ${odd.label} is different — the others are all ${cat} scenes.`,
   };
 }
 
-function buildSequence(difficulty: number): PuzzleQuestion {
-  const seq = SEQUENCES[Math.floor(Math.random() * SEQUENCES.length)];
-  const stepCount = Math.min(3 + Math.floor(difficulty / 2), seq.steps.length);
-  const steps = seq.steps.slice(0, stepCount);
-  const shuffled = shuffle(steps);
+function buildVisualSequence(difficulty: number): PuzzleQuestion {
+  const story = STORY_SEQUENCES[Math.floor(Math.random() * STORY_SEQUENCES.length)];
+  const stepCount = Math.min(3 + Math.floor(difficulty / 2), 4);
+  const startIdx = Math.floor(Math.random() * (story.images.length - stepCount));
+  const correct = story.images.slice(startIdx, startIdx + stepCount);
+  const shuffled = shuffle(correct);
   return {
     id: `seq-${Math.random().toString(36).slice(2, 8)}`,
-    type: "sequence",
-    prompt: seq.prompt,
-    answer: steps.join(" → "),
-    options: shuffled,
-    answerIndex: -1, // sequence puzzles are arranged, not selected
-    explanation: `The correct order is: ${steps.join(" → ")}.`,
-    correctSequence: steps,
+    type: "visual_sequence",
+    prompt: `Arrange these pictures from "${story.title}" in the correct order.`,
+    correctSequence: correct,
+    shuffledSequence: shuffled,
+    answerIndex: -1,
+    options: shuffled.map((s) => s.label),
+    answer: correct.map((s) => s.label).join(" → "),
+    explanation: `The correct order is: ${correct.map((s) => s.label).join(" → ")}.`,
   };
 }
 
-function buildPattern(difficulty: number): PuzzleQuestion {
-  const pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
-  const pool = [...new Set(pattern.sequence.filter((s) => s !== "?"))];
-  const wrongs = shuffle(FOODS.concat(HOUSEHOLD).filter((x) => !pool.includes(x))).slice(0, 3);
-  const options = shuffle([pattern.answer, ...wrongs]);
+function buildVisualPattern(): PuzzleQuestion {
+  // Show ABAB pattern with scene images
+  const [a, b] = pick(SCENE_IMAGES, 2);
+  const pattern = [a, b, a, b];
+  const wrongs = pick(SCENE_IMAGES.filter((s) => s.id !== a.id && s.id !== b.id), 3);
+  const imageOptions = shuffle([a, ...wrongs]).map((s) => ({ image: s.image, label: s.label }));
   return {
     id: `pat-${Math.random().toString(36).slice(2, 8)}`,
-    type: "pattern",
-    prompt: `${pattern.prompt}\n${pattern.sequence.join(" → ")}`,
-    answer: pattern.answer,
-    options: options.map(capitalize),
-    answerIndex: options.indexOf(pattern.answer),
-    explanation: `The pattern repeats, so "${pattern.answer}" comes next.`,
+    type: "visual_pattern",
+    prompt: "Which picture comes next in the pattern?",
+    stimulusImage: pattern.map((p) => p.image).join(","),
+    stimulusLabel: pattern.map((p) => p.label).join(" → "),
+    imageOptions,
+    answerImage: a.image,
+    answerIndex: imageOptions.findIndex((o) => o.image === a.image),
+    options: imageOptions.map((o) => o.label),
+    answer: a.label,
+    explanation: `The pattern repeats: ${a.label} → ${b.label} → ${a.label} → ${b.label} → ${a.label}.`,
   };
 }
 
-function buildMissingObject(difficulty: number): PuzzleQuestion {
-  const pool = ALL_POOLS[Math.floor(Math.random() * ALL_POOLS.length)];
-  const count = Math.min(3 + Math.floor(difficulty / 2), 5);
-  const items = pick(pool, count);
-  const missing = items[items.length - 1];
-  const shown = items.slice(0, -1);
-  const wrongs = pick(pool.filter((x) => !items.includes(x)), 3);
-  const options = shuffle([missing, ...wrongs]);
+function buildVisualCounting(): PuzzleQuestion {
+  // Use a scene image + ask how many of a specific object
+  // Use the content pack data from questions.ts
+  const sceneCounts: Record<string, { image: string; label: string; object: string; count: number }[]> = {
+    garden: [
+      { image: "/images/activities/garden.png", label: "Garden", object: "roses", count: 3 },
+      { image: "/images/activities/garden.png", label: "Garden", object: "marigolds", count: 5 },
+    ],
+    market: [
+      { image: "/images/activities/market.png", label: "Market", object: "tomatoes", count: 6 },
+      { image: "/images/activities/market.png", label: "Market", object: "pumpkins", count: 2 },
+    ],
+    festival: [
+      { image: "/images/activities/festival.png", label: "Festival", object: "diyas", count: 4 },
+    ],
+    home: [
+      { image: "/images/activities/home.png", label: "Home", object: "bananas", count: 3 },
+    ],
+  };
+  const allCounts = Object.values(sceneCounts).flat();
+  const target = allCounts[Math.floor(Math.random() * allCounts.length)];
+  const wrongs = [target.count + 1, target.count - 1, target.count + 2].filter((n) => n > 0 && n !== target.count);
+  const options = shuffle([String(target.count), ...wrongs.slice(0, 3).map(String)]);
   return {
-    id: `mo-${Math.random().toString(36).slice(2, 8)}`,
-    type: "missing_object",
-    prompt: `You saw: ${shown.map(capitalize).join(", ")}\nWhich object is missing?`,
-    answer: missing,
-    options: options.map(capitalize),
-    answerIndex: options.indexOf(missing),
-    explanation: `The ${missing} was missing from the list.`,
-    shownObjects: shown,
+    id: `cnt-${Math.random().toString(36).slice(2, 8)}`,
+    type: "visual_counting",
+    prompt: `How many ${target.object} do you see in this picture?`,
+    stimulusImage: target.image,
+    stimulusLabel: target.label,
+    options,
+    answer: String(target.count),
+    answerIndex: options.indexOf(String(target.count)),
+    correctCount: target.count,
+    explanation: `There ${target.count === 1 ? "is 1" : `are ${target.count}`} ${target.object} in the picture.`,
   };
 }
 
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+function buildVisualMissingScene(): PuzzleQuestion {
+  const shown = pick(SCENE_IMAGES, 3);
+  const missing = shown[shown.length - 1];
+  const displayed = shown.slice(0, -1);
+  const wrongs = pick(SCENE_IMAGES.filter((s) => !shown.includes(s)), 3);
+  const imageOptions = shuffle([missing, ...wrongs]).map((s) => ({ image: s.image, label: s.label }));
+  return {
+    id: `ms-${Math.random().toString(36).slice(2, 8)}`,
+    type: "visual_missing_scene",
+    prompt: "You saw these pictures. Which one is missing?",
+    shownScenes: displayed.map((s) => ({ image: s.image, label: s.label })),
+    missingScene: { image: missing.image, label: missing.label },
+    imageOptions,
+    answerImage: missing.image,
+    answerIndex: imageOptions.findIndex((o) => o.image === missing.image),
+    options: imageOptions.map((o) => o.label),
+    answer: missing.label,
+    explanation: `The ${missing.label} picture was missing.`,
+  };
 }
 
-const BUILDERS: Record<PuzzleType, (difficulty: number) => PuzzleQuestion> = {
-  odd_one_out: buildOddOneOut,
-  remember_find: buildRememberFind,
-  sequence: buildSequence,
-  pattern: buildPattern,
-  missing_object: buildMissingObject,
-};
+const BUILDERS: ((d?: number) => PuzzleQuestion)[] = [
+  buildVisualRecognition,
+  buildVisualOddOneOut,
+  () => buildVisualSequence(2),
+  buildVisualPattern,
+  buildVisualCounting,
+  buildVisualMissingScene,
+];
 
-const ALL_TYPES: PuzzleType[] = ["odd_one_out", "remember_find", "pattern", "missing_object", "sequence"];
-
-/**
- * Build a set of varied puzzle questions. Each call produces different content.
- * Difficulty (1-5) controls the number of items and options.
- */
 export function buildPuzzleSet(difficulty: number, count = 4): PuzzleQuestion[] {
-  const types = shuffle(ALL_TYPES).slice(0, Math.min(count, ALL_TYPES.length));
-  const out: PuzzleQuestion[] = [];
-  for (const type of types) {
-    out.push(BUILDERS[type](difficulty));
-  }
-  // If we need more questions than types, add random ones
+  const builders = shuffle(BUILDERS).slice(0, Math.min(count, BUILDERS.length));
+  const out = builders.map((b) => b(difficulty));
   while (out.length < count) {
-    const type = ALL_TYPES[Math.floor(Math.random() * ALL_TYPES.length)];
-    out.push(BUILDERS[type](difficulty));
+    out.push(BUILDERS[Math.floor(Math.random() * BUILDERS.length)](difficulty));
   }
   return out;
 }
 
-/**
- * Adaptive difficulty: based on recent accuracy (0-1), adjust the next
- * difficulty level. Strong performance → +1 (cap 5). Weak → -1 (floor 1).
- * Gradual — never jumps more than 1 level.
- */
 export function adaptiveDifficulty(currentDifficulty: number, accuracy: number): number {
   if (accuracy >= 0.8 && currentDifficulty < 5) return currentDifficulty + 1;
   if (accuracy < 0.4 && currentDifficulty > 1) return currentDifficulty - 1;
   return currentDifficulty;
 }
 
-// ── Memory Match game data ─────────────────────────────────────────
+// ── Memory Match with real images ──────────────────────────────────
 export interface MemoryCard {
   id: number;
+  image: string;
   label: string;
   matched: boolean;
 }
 
 export function buildMemoryCards(difficulty: number): MemoryCard[] {
-  const pool = ALL_POOLS[Math.floor(Math.random() * ALL_POOLS.length)];
   const pairCount = Math.min(3 + Math.floor(difficulty / 2), 6);
-  const items = pick(pool, pairCount);
-  const cards = shuffle([...items, ...items]).map((label, i) => ({
+  const items = pick(SCENE_IMAGES, pairCount);
+  const cards = shuffle([...items, ...items]).map((s, i) => ({
     id: i,
-    label: capitalize(label),
+    image: s.image,
+    label: s.label,
     matched: false,
   }));
   return cards;
 }
 
-// ── Snake game config (dementia-friendly) ──────────────────────────
+// ── Snake config (unchanged, already visual) ───────────────────────
 export interface SnakeConfig {
   gridSize: number;
   speedMs: number;
 }
 
 export function snakeConfig(difficulty: number): SnakeConfig {
-  // Start very easy: slow speed, small grid. Gradually increase.
   const gridSize = Math.min(8 + difficulty * 2, 16);
   const speedMs = Math.max(500 - difficulty * 50, 200);
   return { gridSize, speedMs };

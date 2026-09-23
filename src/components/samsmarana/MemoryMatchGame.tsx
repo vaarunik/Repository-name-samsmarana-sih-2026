@@ -49,8 +49,7 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
       setCanFlip(false);
       setMoves((m) => m + 1);
       const [a, b] = newFlipped;
-      if (cards[a].label === cards[b].label) {
-        // Match!
+      if (cards[a].image === cards[b].image) {
         timerRef.current = setTimeout(() => {
           const newMatched = new Set(matched);
           newMatched.add(a);
@@ -58,13 +57,11 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
           setMatched(newMatched);
           setFlipped([]);
           setCanFlip(true);
-          // Check if all matched
           if (newMatched.size === cards.length) {
             finish(newMatched.size, moves + 1);
           }
         }, 600);
       } else {
-        // No match
         timerRef.current = setTimeout(() => {
           setFlipped([]);
           setCanFlip(true);
@@ -103,7 +100,7 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
         <Card className="overflow-hidden p-0">
           <div className="relative bg-gradient-to-br from-teal-600 to-sky-600 p-8 text-white">
             <h2 className="font-serif text-3xl font-semibold">Memory Match</h2>
-            <p className="mt-1 text-white/85">Find matching pairs of cards. Starts simple and adapts to your performance.</p>
+            <p className="mt-1 text-white/85">Find matching pairs of real photographs. Starts simple and adapts to your performance.</p>
           </div>
           <div className="p-6">
             <Button size="lg" className="h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground" onClick={start}>
@@ -120,7 +117,7 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
     return (
       <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">Find the pairs</h2>
+          <h2 className="font-serif text-xl font-semibold text-foreground">Find the matching pairs</h2>
           <span className="text-sm text-muted-foreground">Moves: {moves}</span>
         </div>
         <Progress value={progress} className="mb-4 h-2.5" />
@@ -132,21 +129,24 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
               <button
                 key={card.id}
                 onClick={() => flip(idx)}
-                className={`flex aspect-square items-center justify-center rounded-2xl border-2 text-lg font-semibold transition-all ${
+                className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-all ${
                   isMatched
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-500 ring-2 ring-emerald-200"
                     : isFlipped
-                      ? "border-teal-400 bg-teal-50 text-teal-800"
-                      : "border-border bg-card hover:border-emerald-300"
+                      ? "border-teal-400"
+                      : "border-border bg-emerald-600 hover:bg-emerald-700"
                 }`}
               >
                 {isFlipped ? (
-                  <span className="flex flex-col items-center gap-1">
-                    {card.label}
-                    {isMatched && <Check className="h-4 w-4 text-emerald-600" />}
-                  </span>
+                   
+                  <img src={card.image} alt={card.label} className="h-full w-full object-cover" />
                 ) : (
-                  <span className="text-2xl text-muted-foreground">?</span>
+                  <span className="flex h-full items-center justify-center text-3xl text-white/80">?</span>
+                )}
+                {isMatched && (
+                  <span className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
                 )}
               </button>
             );
