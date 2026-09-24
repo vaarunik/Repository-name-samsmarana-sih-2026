@@ -11,6 +11,8 @@
 // asking about a "shopkeeper" in an image that contains only vegetables.
 
 import type { ActivityCategory, Question, SceneKey } from "./types";
+import type { LanguageCode } from "./i18n";
+import { gt } from "./game-i18n";
 
 interface ContentPack {
   /** objects actually visible in the stimulus image, ordered by appearance */
@@ -324,6 +326,8 @@ export interface BuildQuestionsOptions {
   minQuestions?: number;
   /** maximum number of questions (default 5) */
   maxQuestions?: number;
+  /** language for question prompts (default "en") */
+  lang?: LanguageCode;
   /** internal: prevents infinite recursion in the fallback path */
   _fallback?: boolean;
 }
@@ -342,6 +346,7 @@ export function buildQuestions(
   difficulty: number,
   opts: BuildQuestionsOptions = {}
 ): Question[] {
+  const lang: LanguageCode = opts.lang ?? "en";
   const pack = PACKS[scene];
   const objs = pack.objects;
   const wrongsFrom = (exclude: string[]) =>
@@ -386,10 +391,10 @@ export function buildQuestions(
       const variant = made % 3; // rotate prompt variants
       const prompt =
         variant === 0
-          ? `Which of these did you see in the ${sceneLabel(scene)}?`
+          ? gt(lang, "q.recognition.whichDidYouSee", { scene: sceneLabel(scene) })
           : variant === 1
-            ? `Was the ${t} shown in the scene?`
-            : `Which object was part of the scene?`;
+            ? gt(lang, "q.recognition.wasShown", { obj: t })
+            : gt(lang, "q.recognition.whichWasPart");
       const q =
         variant === 1
           ? mc("recognition", prompt, "Yes", ["No"], `Yes — the ${t} was shown in the scene.`)
@@ -402,7 +407,7 @@ export function buildQuestions(
     if (made < count && difficulty >= 2) {
       const q = mc(
         "recognition",
-        `Which object was NOT part of the scene?`,
+        gt(lang, "q.recognition.notPart"),
         "a space rocket",
         wrongsFrom([]).slice(0, 3),
         `A space rocket was not shown — everything else appeared in the scene.`,
@@ -415,13 +420,13 @@ export function buildQuestions(
   const buildRecall = (count: number) => {
     // rotate between first/last/middle ordering questions
     const variants = [
-      { prompt: `Which object appeared FIRST in the scene?`, ans: pack.first, exp: `The ${pack.first} appeared first.` },
-      { prompt: `Which object appeared LAST in the scene?`, ans: pack.last, exp: `The ${pack.last} appeared last.` },
+      { prompt: gt(lang, "q.recall.first"), ans: pack.first, exp: `The ${pack.first} appeared first.` },
+      { prompt: gt(lang, "q.recall.last"), ans: pack.last, exp: `The ${pack.last} appeared last.` },
     ];
     if (objs.length >= 3) {
       const mid = objs[Math.floor(objs.length / 2)];
       variants.push({
-        prompt: `Which object appeared in the MIDDLE of the scene?`,
+        prompt: gt(lang, "q.recall.middle"),
         ans: mid,
         exp: `The ${mid} appeared in the middle.`,
       });
@@ -440,7 +445,7 @@ export function buildQuestions(
       const [cObj, cCol] = colorEntries[i];
       const q = mc(
         "attention",
-        `What colour was the ${cObj}?`,
+        gt(lang, "q.attention.whatColour", { obj: cObj }),
         cCol,
         shuffle(["yellow", "purple", "pink", "grey"].filter((c) => c !== cCol)).slice(0, 3),
         `The ${cObj} was ${cCol}.`
@@ -450,7 +455,7 @@ export function buildQuestions(
     if (made < count && pack.people) {
       const q = mc(
         "attention",
-        `How many people did you see in the scene?`,
+        gt(lang, "q.attention.howManyPeople"),
         String(pack.people),
         shuffle([String(pack.people + 1), String(pack.people + 2), String(Math.max(0, pack.people - 1))]),
         `There ${pack.people === 1 ? "was 1 person" : `were ${pack.people} people`} in the scene.`,
@@ -467,7 +472,7 @@ export function buildQuestions(
       const [cObj, cCount] = countEntries[i];
       const q = mc(
         "counting",
-        `How many ${cObj}${cObj.endsWith("s") ? "" : "s"} did you see?`,
+        gt(lang, "q.counting.howMany", { obj: cObj + (cObj.endsWith("s") ? "" : "s") }),
         String(cCount),
         shuffle([String(cCount + 1), String(Math.max(0, cCount - 1)), String(cCount + 2)]),
         `There ${cCount === 1 ? "was 1" : `were ${cCount}`} ${cObj} in the scene.`
@@ -483,7 +488,7 @@ export function buildQuestions(
       const [sObj, sPos] = posEntries[i];
       const q = mc(
         "spatial",
-        `Where was the ${sObj}?`,
+        gt(lang, "q.spatial.whereWas", { obj: sObj }),
         sPos,
         shuffle(["in the centre", "on the ceiling", "under the table", "in the corner"].filter((p) => p !== sPos)).slice(0, 3),
         `The ${sObj} was ${sPos}.`
@@ -502,7 +507,7 @@ export function buildQuestions(
       const { a, b } = order[i];
       const q = mc(
         "sequencing",
-        `Which object came right AFTER the ${a}?`,
+        gt(lang, "q.sequencing.after", { obj: a }),
         b,
         wrongsFrom([b]).slice(0, 3),
         `After the ${a}, the ${b} appeared.`
@@ -518,12 +523,12 @@ export function buildQuestions(
       const shown = candidates[i];
       const isYes = Math.random() > 0.4;
       const q = isYes
-        ? mc("concentration", `Was a ${shown} shown in the scene?`, "Yes", ["No"], `Yes — the ${shown} was shown.`)
-        : mc("concentration", `Was a ${shown} NOT shown in the scene?`, "No", ["Yes"], `No — the ${shown} was shown in the scene.`);
+        ? mc("concentration", gt(lang, "q.concentration.wasShown", { obj: shown }), gt(lang, "answer.yes"), [gt(lang, "answer.no")], `Yes — the ${shown} was shown.`)
+        : mc("concentration", gt(lang, "q.concentration.notShown", { obj: shown }), gt(lang, "answer.no"), [gt(lang, "answer.yes")], `No — the ${shown} was shown in the scene.`);
       if (tryAdd(q)) made++;
     }
     if (made < count) {
-      tryAdd(mc("concentration", `How many different objects appeared?`, String(objs.length), shuffle([String(Math.max(0, objs.length - 1)), String(objs.length + 1)]), `${objs.length} different objects appeared in the scene.`, "object-count"));
+      tryAdd(mc("concentration", gt(lang, "q.concentration.howManyObjects"), String(objs.length), shuffle([String(Math.max(0, objs.length - 1)), String(objs.length + 1)]), `${objs.length} different objects appeared in the scene.`, "object-count"));
     }
   };
 
@@ -534,7 +539,7 @@ export function buildQuestions(
       const [pObj] = posEntries[i];
       const q = mc(
         "problem_solving",
-        `If you needed the ${pObj} but could not reach it safely, what is the best next step?`,
+        gt(lang, "q.problemSolving.reach", { obj: pObj }),
         "Ask someone for help",
         ["Climb the shelves quickly", "Pull the shelf toward you", "Jump and grab it"],
         `Asking for help is the safest choice — climbing or pulling shelves risks a fall.`,
@@ -551,7 +556,7 @@ export function buildQuestions(
       const word = words[i];
       const q = mc(
         "language",
-        `Which phrase best describes "${word}"?`,
+        gt(lang, "q.language.describes", { word }),
         "a familiar everyday thing",
         shuffle(["a distant planet", "a type of storm", "a musical note", "a mathematical symbol"]),
         `"${word}" is a familiar everyday thing shown in the scene.`

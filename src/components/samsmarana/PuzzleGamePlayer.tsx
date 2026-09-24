@@ -39,7 +39,7 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
   }, []);
 
   function startSession() {
-    const qs = buildPuzzleSet(difficulty, 4);
+    const qs = buildPuzzleSet(difficulty, 4, (profile?.language ?? "en") as never);
     setQuestions(qs);
     setQi(0);
     setAnswers([]);

@@ -77,6 +77,7 @@ export function ActivityPlayer({
     questions: buildQuestions(activity.scene, activity.category, activity.difficulty, {
       minQuestions: 3,
       maxQuestions: 5,
+      lang: (profile?.language ?? "en") as never,
     }),
     loading: true,
   });

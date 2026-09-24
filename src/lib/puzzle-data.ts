@@ -4,6 +4,8 @@
 // Images rotate across sessions using the full pool of scene + story images.
 
 import type { SceneKey } from "./types";
+import type { LanguageCode } from "./i18n";
+import { gt } from "./game-i18n";
 
 // ── Image pool: all available realistic photographs ────────────────
 export interface SceneImage {
@@ -184,14 +186,14 @@ function pick<T>(arr: T[], n: number): T[] {
 
 // ── Puzzle builders ────────────────────────────────────────────────
 
-function buildVisualRecognition(): PuzzleQuestion {
+function buildVisualRecognition(lang: LanguageCode): PuzzleQuestion {
   const target = SCENE_IMAGES[Math.floor(Math.random() * SCENE_IMAGES.length)];
   const others = pick(SCENE_IMAGES.filter((s) => s.id !== target.id), 3);
   const imageOptions = shuffle([target, ...others]).map((s) => ({ image: s.image, label: s.label }));
   return {
     id: `vr-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_recognition",
-    prompt: "Which picture did you just see?",
+    prompt: gt(lang, "puzzle.whichPicture"),
     stimulusImage: target.image,
     stimulusLabel: target.label,
     imageOptions,
@@ -203,20 +205,20 @@ function buildVisualRecognition(): PuzzleQuestion {
   };
 }
 
-function buildVisualOddOneOut(): PuzzleQuestion {
+function buildVisualOddOneOut(lang: LanguageCode): PuzzleQuestion {
   // Pick a category, get 3 from that category + 1 from a different category
   const categories = ["nature", "food", "indoor", "travel", "community", "cultural"];
   const cat = categories[Math.floor(Math.random() * categories.length)];
   const sameCategory = SCENE_IMAGES.filter((s) => s.category === cat);
   const otherCategory = SCENE_IMAGES.filter((s) => s.category !== cat);
-  if (sameCategory.length < 3 || otherCategory.length < 1) return buildVisualRecognition();
+  if (sameCategory.length < 3 || otherCategory.length < 1) return buildVisualRecognition(lang);
   const same = pick(sameCategory, 3);
   const odd = pick(otherCategory, 1)[0];
   const imageOptions = shuffle([...same, odd]).map((s) => ({ image: s.image, label: s.label }));
   return {
     id: `ooo-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_odd_one_out",
-    prompt: "Which picture does NOT belong with the others?",
+    prompt: gt(lang, "puzzle.notBelong"),
     imageOptions,
     answerImage: odd.image,
     answerIndex: imageOptions.findIndex((o) => o.image === odd.image),
@@ -226,7 +228,7 @@ function buildVisualOddOneOut(): PuzzleQuestion {
   };
 }
 
-function buildVisualSequence(difficulty: number): PuzzleQuestion {
+function buildVisualSequence(difficulty: number, lang: LanguageCode): PuzzleQuestion {
   const story = STORY_SEQUENCES[Math.floor(Math.random() * STORY_SEQUENCES.length)];
   const stepCount = Math.min(3 + Math.floor(difficulty / 2), 4);
   const startIdx = Math.floor(Math.random() * (story.images.length - stepCount));
@@ -235,7 +237,7 @@ function buildVisualSequence(difficulty: number): PuzzleQuestion {
   return {
     id: `seq-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_sequence",
-    prompt: `Arrange these pictures from "${story.title}" in the correct order.`,
+    prompt: gt(lang, "puzzle.arrange", { story: story.title }),
     correctSequence: correct,
     shuffledSequence: shuffled,
     answerIndex: -1,
@@ -245,7 +247,7 @@ function buildVisualSequence(difficulty: number): PuzzleQuestion {
   };
 }
 
-function buildVisualPattern(): PuzzleQuestion {
+function buildVisualPattern(lang: LanguageCode): PuzzleQuestion {
   // Show ABAB pattern with scene images
   const [a, b] = pick(SCENE_IMAGES, 2);
   const pattern = [a, b, a, b];
@@ -254,7 +256,7 @@ function buildVisualPattern(): PuzzleQuestion {
   return {
     id: `pat-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_pattern",
-    prompt: "Which picture comes next in the pattern?",
+    prompt: gt(lang, "puzzle.nextPattern"),
     stimulusImage: pattern.map((p) => p.image).join(","),
     stimulusLabel: pattern.map((p) => p.label).join(" → "),
     imageOptions,
@@ -266,7 +268,7 @@ function buildVisualPattern(): PuzzleQuestion {
   };
 }
 
-function buildVisualCounting(): PuzzleQuestion {
+function buildVisualCounting(lang: LanguageCode): PuzzleQuestion {
   // Use a scene image + ask how many of a specific object
   // Use the content pack data from questions.ts
   const sceneCounts: Record<string, { image: string; label: string; object: string; count: number }[]> = {
@@ -292,7 +294,7 @@ function buildVisualCounting(): PuzzleQuestion {
   return {
     id: `cnt-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_counting",
-    prompt: `How many ${target.object} do you see in this picture?`,
+    prompt: gt(lang, "puzzle.howMany", { obj: target.object }),
     stimulusImage: target.image,
     stimulusLabel: target.label,
     options,
@@ -303,7 +305,7 @@ function buildVisualCounting(): PuzzleQuestion {
   };
 }
 
-function buildVisualMissingScene(): PuzzleQuestion {
+function buildVisualMissingScene(lang: LanguageCode): PuzzleQuestion {
   const shown = pick(SCENE_IMAGES, 3);
   const missing = shown[shown.length - 1];
   const displayed = shown.slice(0, -1);
@@ -312,7 +314,7 @@ function buildVisualMissingScene(): PuzzleQuestion {
   return {
     id: `ms-${Math.random().toString(36).slice(2, 8)}`,
     type: "visual_missing_scene",
-    prompt: "You saw these pictures. Which one is missing?",
+    prompt: gt(lang, "puzzle.missing"),
     shownScenes: displayed.map((s) => ({ image: s.image, label: s.label })),
     missingScene: { image: missing.image, label: missing.label },
     imageOptions,
@@ -324,20 +326,20 @@ function buildVisualMissingScene(): PuzzleQuestion {
   };
 }
 
-const BUILDERS: ((d?: number) => PuzzleQuestion)[] = [
-  buildVisualRecognition,
-  buildVisualOddOneOut,
-  () => buildVisualSequence(2),
-  buildVisualPattern,
-  buildVisualCounting,
-  buildVisualMissingScene,
+const BUILDERS: ((d: number, lang: LanguageCode) => PuzzleQuestion)[] = [
+  (d, lang) => buildVisualRecognition(lang),
+  (d, lang) => buildVisualOddOneOut(lang),
+  (d, lang) => buildVisualSequence(d, lang),
+  (d, lang) => buildVisualPattern(lang),
+  (d, lang) => buildVisualCounting(lang),
+  (d, lang) => buildVisualMissingScene(lang),
 ];
 
-export function buildPuzzleSet(difficulty: number, count = 4): PuzzleQuestion[] {
+export function buildPuzzleSet(difficulty: number, count = 4, lang: LanguageCode = "en"): PuzzleQuestion[] {
   const builders = shuffle(BUILDERS).slice(0, Math.min(count, BUILDERS.length));
-  const out = builders.map((b) => b(difficulty));
+  const out = builders.map((b) => b(difficulty, lang));
   while (out.length < count) {
-    out.push(BUILDERS[Math.floor(Math.random() * BUILDERS.length)](difficulty));
+    out.push(BUILDERS[Math.floor(Math.random() * BUILDERS.length)](difficulty, lang));
   }
   return out;
 }

@@ -48,9 +48,13 @@ export async function POST(req: Request) {
   const meta = SCENE_META[scene];
 
   // Generate grounded questions from the EXACT selected stimulus.
+  // Pass the user's language so question prompts are translated.
+  const profile = await db.profile.findUnique({ where: { id: profileId } });
+  const lang = (profile?.language ?? "en") as never;
   const questions: Question[] = buildQuestions(scene, activityType as ActivityCategory, difficulty, {
     minQuestions: 3,
     maxQuestions: 5,
+    lang,
   });
 
   // Double-check: validate every question against this stimulus's evidence.
