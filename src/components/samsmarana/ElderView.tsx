@@ -26,6 +26,7 @@ import {
   Languages,
   Compass,
   Apple,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,6 +50,7 @@ import { VideoComingSoon } from "./VideoComingSoon";
 import { PuzzleGamePlayer } from "./PuzzleGamePlayer";
 import { MemoryMatchGame } from "./MemoryMatchGame";
 import { SnakeGame } from "./SnakeGame";
+import { PackYourBagsGame } from "./PackYourBagsGame";
 import { useApp } from "@/lib/store";
 import { syncPending } from "@/lib/sync";
 import {
@@ -84,7 +86,8 @@ type Launched =
   | { kind: "sequencing"; activity: SequencingActivity }
   | { kind: "puzzle" }
   | { kind: "memorymatch" }
-  | { kind: "snake" };
+  | { kind: "snake" }
+  | { kind: "packbags" };
 
 export function ElderView() {
   const profile = useApp((s) => s.profile);
@@ -123,6 +126,9 @@ export function ElderView() {
     }
     if (launched.kind === "snake") {
       return <SnakeGame onExit={() => setLaunched(null)} />;
+    }
+    if (launched.kind === "packbags") {
+      return <PackYourBagsGame onExit={() => setLaunched(null)} />;
     }
     if (launched.kind === "video") {
       return (
@@ -394,6 +400,13 @@ export function ElderView() {
                 description="A slow, gentle snake game. Eat apples!"
                 difficulty="Adaptive"
                 onStart={() => setLaunched({ kind: "snake" })}
+              />
+              <BrainGameCard
+                icon={Briefcase}
+                title="Pack Your Bags"
+                description="Choose the right items for everyday situations!"
+                difficulty="Adaptive"
+                onStart={() => setLaunched({ kind: "packbags" })}
               />
             </div>
           </FadeIn>
