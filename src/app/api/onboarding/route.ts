@@ -6,7 +6,11 @@ import { db } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { toProfile } from "@/app/api/session/route";
 import { seedFamilyForProfile } from "@/lib/seed";
-import type { OnboardingData, ActivityCategory, LanguageCode } from "@/lib/types";
+import type {
+  OnboardingData,
+  ActivityCategory,
+  LanguageCode,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,52 +57,86 @@ const DEMOS: Record<
 };
 
 export async function POST(req: Request) {
-  let body: Partial<OnboardingData> & { demo?: keyof typeof DEMOS };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ message: "Invalid request." }, { status: 400 });
+    let body: Partial<OnboardingData> & { demo?: keyof typeof DEMOS };
+
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "Invalid request." },
+        { status: 400 }
+      );
+    }
+
+    const demo = body.demo ? DEMOS[body.demo] : undefined;
+
+    if (body.demo && !demo) {
+      return NextResponse.json(
+        { success: false, message: "Unknown demo profile." },
+        { status: 400 }
+      );
+    }
+
+    const data = demo ?? {
+      name: (body.name || "").trim(),
+      age: Number(body.age) || 70,
+      language: (body.language as LanguageCode) || "en",
+      regionGroup: body.regionGroup || "South India",
+      regionState: body.regionState || "Karnataka",
+      interests: body.interests ?? [],
+      preferredActivities: (body.preferredActivities ??
+        []) as ActivityCategory[],
+      caregiverName: body.caregiverName || "Caregiver",
+      caregiverRelation: body.caregiverRelation || "Family",
+    };
+
+    if (!demo && !data.name) {
+      return NextResponse.json(
+        { success: false, message: "Name is required." },
+        { status: 400 }
+      );
+    }
+
+    const created = await db.profile.create({
+      data: {
+        role: "ELDER",
+        name: data.name,
+        age: data.age,
+        language: data.language,
+        regionGroup: data.regionGroup,
+        regionState: data.regionState,
+        interests: JSON.stringify(data.interests),
+        preferredActivities: JSON.stringify(data.preferredActivities),
+        caregiverName: data.caregiverName || null,
+        caregiverRelation: data.caregiverRelation || null,
+        familyName: data.familyName || data.caregiverName || null,
+      },
+    });
+
+    await seedFamilyForProfile(
+      created.id,
+      created.name,
+      data.caregiverName || "Family"
+    );
+
+    await setSession(created.id);
+
+    return NextResponse.json({
+      success: true,
+      profile: toProfile(created),
+    });
+  } catch (error) {
+    // Keep secrets and database credentials out of the client response.
+    console.error("[SAMSMARANA /api/onboarding]", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Unable to create the profile right now. Please try again.",
+      },
+      { status: 500 }
+    );
   }
-
-  const demo = body.demo ? DEMOS[body.demo] : undefined;
-  if (body.demo && !demo) {
-    return NextResponse.json({ message: "Unknown demo profile." }, { status: 400 });
-  }
-
-  const data = demo ?? {
-    name: (body.name || "").trim(),
-    age: Number(body.age) || 70,
-    language: (body.language as LanguageCode) || "en",
-    regionGroup: body.regionGroup || "South India",
-    regionState: body.regionState || "Karnataka",
-    interests: body.interests ?? [],
-    preferredActivities: (body.preferredActivities ?? []) as ActivityCategory[],
-    caregiverName: body.caregiverName || "Caregiver",
-    caregiverRelation: body.caregiverRelation || "Family",
-  };
-
-  if (!demo && !data.name) {
-    return NextResponse.json({ message: "Name is required." }, { status: 400 });
-  }
-
-  const created = await db.profile.create({
-    data: {
-      role: "ELDER",
-      name: data.name,
-      age: data.age,
-      language: data.language,
-      regionGroup: data.regionGroup,
-      regionState: data.regionState,
-      interests: JSON.stringify(data.interests),
-      preferredActivities: JSON.stringify(data.preferredActivities),
-      caregiverName: data.caregiverName || null,
-      caregiverRelation: data.caregiverRelation || null,
-      familyName: data.familyName || data.caregiverName || null,
-    },
-  });
-
-  await seedFamilyForProfile(created.id, created.name, data.caregiverName || "Family");
-
-  await setSession(created.id);
-  return NextResponse.json({ profile: toProfile(created) });
 }
