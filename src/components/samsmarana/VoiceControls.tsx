@@ -3,8 +3,12 @@
 // SAMSMARANA — voice controls (large, obvious, elder-friendly).
 // Per the spec: a large 🔊 Listen button for instructions and a large
 // 🎙️ Speak your answer button for voice input. Never hidden in a tiny icon.
+//
+// FIX: The SpeakAnswerButton no longer returns null when unsupported — it
+// shows a disabled button with an elderly-friendly message. Error states
+// (permission denied, no speech, unsupported) are surfaced clearly.
 
-import { Volume2, Square, Mic, MicOff, AudioLines } from "lucide-react";
+import { Volume2, Square, Mic, AudioLines, AlertCircle, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSpeak, useListen, type VoiceSpeed } from "@/lib/voice";
@@ -24,32 +28,49 @@ export function ListenButton({
   className?: string;
   label?: string;
 }) {
-  const { speak, stop, speaking, supported } = useSpeak(lang, speed);
-  if (!supported) return null;
-  return (
-    <Button
-      type="button"
-      size="lg"
-      onClick={() => (speaking ? stop() : speak(text))}
-      className={cn(
-        "h-14 min-w-[140px] gap-2.5 rounded-2xl text-base font-semibold",
-        speaking
-          ? "bg-teal-600 text-white hover:bg-teal-700"
-          : "bg-emerald-600 text-white hover:bg-emerald-700",
-        className
-      )}
-      aria-label={speaking ? "Stop listening" : label}
-    >
-      {speaking ? (
-        <>
-          <Square className="h-5 w-5" /> Stop
-        </>
-      ) : (
-        <>
+  const { speak, stop, speaking, supported, voiceUnavailable } = useSpeak(lang, speed);
+
+  if (!supported) {
+    return (
+      <div className={cn("flex flex-col gap-1", className)}>
+        <Button type="button" size="lg" disabled className="h-14 min-w-[140px] gap-2.5 rounded-2xl text-base font-semibold opacity-60">
           <Volume2 className="h-5 w-5" /> {label}
-        </>
+        </Button>
+        <p className="text-xs text-muted-foreground">Voice output is not supported on this browser.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("flex flex-col gap-1", className)}>
+      <Button
+        type="button"
+        size="lg"
+        onClick={() => (speaking ? stop() : speak(text))}
+        className={cn(
+          "h-14 min-w-[140px] gap-2.5 rounded-2xl text-base font-semibold",
+          speaking
+            ? "bg-teal-600 text-white hover:bg-teal-700"
+            : "bg-emerald-600 text-white hover:bg-emerald-700"
+        )}
+        aria-label={speaking ? "Stop listening" : label}
+      >
+        {speaking ? (
+          <>
+            <Square className="h-5 w-5" /> Stop
+          </>
+        ) : (
+          <>
+            <Volume2 className="h-5 w-5" /> {label}
+          </>
+        )}
+      </Button>
+      {voiceUnavailable && (
+        <p className="text-xs text-amber-600">
+          A {lang} voice is not available on this device. Speaking in a fallback voice.
+        </p>
       )}
-    </Button>
+    </div>
   );
 }
 
@@ -63,8 +84,22 @@ export function SpeakAnswerButton({
   onTranscript: (text: string) => void;
   className?: string;
 }) {
-  const { start, stop, listening, transcript, supported, reset } = useListen(lang);
-  if (!supported) return null;
+  const { start, stop, listening, transcript, supported, error, reset } = useListen(lang);
+
+  // If STT is unsupported, show a disabled button with a message instead
+  // of hiding the feature entirely (the old code returned null).
+  if (!supported) {
+    return (
+      <div className={cn("flex flex-col gap-1", className)}>
+        <Button type="button" size="lg" disabled className="h-14 gap-2.5 rounded-2xl text-base font-semibold opacity-60">
+          <MicOff className="h-5 w-5" /> Speak your answer
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Voice input is not supported on this browser. You can select an answer above.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -97,6 +132,16 @@ export function SpeakAnswerButton({
           </>
         )}
       </Button>
+
+      {/* Error message (permission denied, no speech, etc.) */}
+      {error && !listening && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      {/* Recognized text */}
       {transcript && (
         <div className="flex items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900">
           <span className="text-sm">
@@ -114,7 +159,7 @@ export function SpeakAnswerButton({
           </button>
         </div>
       )}
-      {listening && !transcript && (
+      {listening && !transcript && !error && (
         <p className="text-sm text-muted-foreground">Listening… speak clearly.</p>
       )}
     </div>
