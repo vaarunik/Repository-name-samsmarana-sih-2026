@@ -80,7 +80,7 @@ export function MemoryMatchGame({ onExit }: { onExit: () => void }) {
       profileId: profile?.id ?? "anon",
       activityId: "memory-match",
       category: "recall",
-      title: "Memory Match",
+      title: t("elder.storyGames"),
       difficulty,
       accuracy,
       responseMs: 0,

@@ -145,7 +145,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
       profileId: profile?.id ?? "anon",
       activityId: "pack-your-bags",
       category: "problem_solving",
-      title: "Pack Your Bags",
+      title: t("pack.startPacking"),
       difficulty,
       accuracy: Math.min(accuracy, 1),
       responseMs: 0,
@@ -197,12 +197,12 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
 
         {/* Situation */}
         <Card className="mb-4 bg-emerald-50/60 p-5">
-          <p className="text-lg font-semibold text-foreground">{round.scenario.situation}</p>
-          {tc && round.scenario.situationCaption !== round.scenario.situation && (
-            <p className="mt-1 text-xs text-muted-foreground">{round.scenario.situationCaption}</p>
+          <p className="text-lg font-semibold text-foreground">{t(round.scenario.situation)}</p>
+          {(profile?.language ?? "en") !== "en" && (
+            <p className="mt-1 text-xs text-muted-foreground">{t("en" as never) && round.scenario.situation.startsWith("pack.") ? t(round.scenario.situation) : round.scenario.situation}</p>
           )}
           <div className="mt-3">
-            <ListenButton text={round.scenario.situation} lang={(profile?.language ?? "en") as never} speed={speed} />
+            <ListenButton text={t(round.scenario.situation)} lang={(profile?.language ?? "en") as never} speed={speed} />
           </div>
         </Card>
 
@@ -222,7 +222,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
                   <motion.div key={item.id} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                     className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-medium shadow-soft">
                     <Icon className="h-4 w-4 text-emerald-600" />
-                    {item.label}
+                    {t(item.label)}
                     <Check className="h-3.5 w-3.5 text-emerald-500" />
                   </motion.div>
                 );
@@ -247,7 +247,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
                 }`}
               >
                 <Icon className={`h-8 w-8 ${isPacked ? "text-emerald-600" : "text-muted-foreground"}`} />
-                <span className="text-sm font-medium text-center">{item.label}</span>
+                <span className="text-sm font-medium text-center">{t(item.label)}</span>
                 {isPacked && <Check className="h-4 w-4 text-emerald-500" />}
               </button>
             );
@@ -267,7 +267,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <Lightbulb className="mr-1.5 inline h-4 w-4" />
-            {round.scenario.hint}
+            {t(round.scenario.hint)}
           </motion.div>
         )}
       </Shell>
@@ -279,10 +279,10 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
     return (
       <Shell onExit={onExit} speed={speed} setSpeed={setSpeed}>
         <Card className="mb-4 bg-sky-50/60 p-5">
-          <p className="text-lg font-semibold text-foreground">{round.missingItemQuestion.prompt}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{round.missingItemQuestion.promptCaption}</p>
+          <p className="text-lg font-semibold text-foreground">{t(round.missingItemQuestion.prompt)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{""}</p>
           <div className="mt-3">
-            <ListenButton text={round.missingItemQuestion.prompt} lang={(profile?.language ?? "en") as never} speed={speed} />
+            <ListenButton text={t(round.missingItemQuestion.prompt)} lang={(profile?.language ?? "en") as never} speed={speed} />
           </div>
         </Card>
 
@@ -294,7 +294,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
               const Icon = ICONS[item.icon] ?? Package;
               return (
                 <span key={item.id} className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm">
-                  <Icon className="h-3.5 w-3.5 text-emerald-600" /> {item.label} <Check className="h-3 w-3 text-emerald-500" />
+                  <Icon className="h-3.5 w-3.5 text-emerald-600" /> {t(item.label)} <Check className="h-3 w-3 text-emerald-500" />
                 </span>
               );
             })}
@@ -312,7 +312,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
                 className="flex flex-col items-center gap-2 rounded-2xl border-2 border-border bg-card p-4 transition-all hover:border-sky-300 hover:bg-sky-50/40"
               >
                 <Icon className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm font-medium text-center">{item.label}</span>
+                <span className="text-sm font-medium text-center">{t(item.label)}</span>
               </button>
             );
           })}
@@ -333,7 +333,7 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
             {feedback.correct ? <Check className="h-8 w-8" /> : <Lightbulb className="h-8 w-8" />}
           </motion.span>
           <h2 className="mt-4 font-serif text-2xl font-semibold text-foreground">
-            {feedback.correct ? t("wellDone") : "Let's think about it"}
+            {feedback.correct ? t("wellDone") : t("thatsOkay")}
           </h2>
           <p className="mt-2 rounded-xl bg-muted/60 p-4 text-base text-foreground">{feedback.message}</p>
           <p className="mt-2 text-sm text-muted-foreground">Score: {score}</p>
@@ -354,9 +354,9 @@ export function PackYourBagsGame({ onExit }: { onExit: () => void }) {
         <p className="mt-1 text-muted-foreground">Final score: {score}</p>
         <p className="mt-2 text-sm font-medium text-emerald-700">Cognitive skills practiced: Memory, Attention, Decision-making</p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          <Stat label="Rounds" value={String(totalRounds)} />
+          <Stat label="score" value={String(totalRounds)} />
           <Stat label="Score" value={String(score)} />
-          <Stat label="Hints used" value={String(hintsUsed)} />
+          <Stat label="score" value={String(hintsUsed)} />
         </div>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Button variant="outline" size="lg" className="h-12 gap-1.5" onClick={() => { setPhase("intro"); }}>

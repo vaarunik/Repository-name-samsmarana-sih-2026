@@ -41,11 +41,11 @@ import { motion, AnimatePresence } from "framer-motion";
  */
 type Phase = "intro" | "observe" | "remember" | "question" | "answering" | "feedback" | "complete";
 
-const PHASE_STEPS: { key: Phase; label: string }[] = [
-  { key: "observe", label: "Observe" },
-  { key: "remember", label: "Remember" },
-  { key: "question", label: "Answer" },
-  { key: "feedback", label: "Feedback" },
+const PHASE_STEPS: { key: Phase; labelKey: string }[] = [
+  { key: "observe", labelKey: "phase.observe" },
+  { key: "remember", labelKey: "phase.remember" },
+  { key: "question", labelKey: "phase.answer" },
+  { key: "feedback", labelKey: "phase.feedback" },
 ];
 
 export function ActivityPlayer({
@@ -220,14 +220,14 @@ export function ActivityPlayer({
   const currentQ = questions[qi];
 
   // Voice instructions per phase
-  const introInstruction = `Activity: ${activity.title}. ${activity.description} Look carefully at the picture, then answer the questions.`;
-  const observeInstruction = `Look carefully at this ${stimulus.label.toLowerCase()} scene. Try to remember the objects, colours and where things are. Take your time.`;
+  const introInstruction = t("game.introInstruction").replace("{title}", activity.title).replace("{desc}", activity.description);
+  const observeInstruction = t("game.observeInstruction").replace("{scene}", stimulus.label.toLowerCase());
   const questionInstruction = currentQ?.prompt ?? "";
 
   // ── INTRO ──────────────────────────────────────────────
   if (phase === "intro") {
     return (
-      <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
+      <Shell onExit={onExit} backLabel={t("back.toActivities")} speed={speed} setSpeed={setSpeed}>
         <Card className="overflow-hidden p-0">
           <div className="relative">
             { }
@@ -247,17 +247,17 @@ export function ActivityPlayer({
             <p className="text-base text-foreground">{introInstruction}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5">
-                Difficulty {activity.difficulty}/5
+                {t("game.level")} {activity.difficulty}/5
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5">
-                <Clock className="h-3.5 w-3.5" /> ~2 minutes
+                <Clock className="h-3.5 w-3.5" /> ~2 min
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
-                <Eye className="h-3.5 w-3.5" /> Visual memory activity
+                <Eye className="h-3.5 w-3.5" /> {t("elder.cognitiveActivities")}
               </span>
             </div>
             <p className="mt-4 rounded-lg bg-emerald-50/70 px-3 py-2 text-xs text-emerald-800">
-              You&apos;ll see the scene, then it will be hidden. Answer from memory.
+              {t("activity.sceneHidden")}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button
@@ -268,7 +268,7 @@ export function ActivityPlayer({
                   startRef.current = Date.now();
                 }}
               >
-                Start activity
+                {t("action.startActivity")}
                 <ArrowRight className="h-5 w-5" />
               </Button>
               <ListenButton text={introInstruction} lang={lang} speed={speed} />
@@ -282,10 +282,10 @@ export function ActivityPlayer({
   // ── OBSERVE (image visible) ───────────────────────────
   if (phase === "observe") {
     return (
-      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+      <Shell onExit={onExit} backLabel={t("action.back")} speed={speed} setSpeed={setSpeed}>
         <PhaseIndicator current="observe" />
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-serif text-xl font-semibold text-foreground">{t("activity.lookCarefully")}</h2>
+          <h2 className="font-serif text-xl font-semibold text-foreground">{t("game.lookCarefully")}</h2>
           {/* gentle dot timer — no stressful countdown */}
           <div className="flex items-center gap-1.5" aria-label="observation timer">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -302,7 +302,7 @@ export function ActivityPlayer({
           { }
           <img src={stimulus.image} alt={stimulus.label} className="aspect-video w-full object-cover" />
         </Card>
-        <p className="mt-3 text-center text-sm text-muted-foreground">Take your time…</p>
+        <p className="mt-3 text-center text-sm text-muted-foreground">{t("game.takeYourTime")}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <ListenButton text={observeInstruction} lang={lang} speed={speed} />
           <Button
@@ -310,7 +310,7 @@ export function ActivityPlayer({
             className="h-14 min-w-[160px] gap-2.5 rounded-2xl bg-primary text-base font-semibold text-primary-foreground"
             onClick={() => setPhase("remember")}
           >
-            I&apos;ve seen it
+            {t("game.iveSeenIt")}
             <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
@@ -321,7 +321,7 @@ export function ActivityPlayer({
   // ── REMEMBER (image HIDDEN — transition) ──────────────
   if (phase === "remember") {
     return (
-      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+      <Shell onExit={onExit} backLabel={t("action.back")} speed={speed} setSpeed={setSpeed}>
         <PhaseIndicator current="remember" />
         <Card className="flex h-64 flex-col items-center justify-center gap-3 text-center">
           <motion.span
@@ -345,7 +345,7 @@ export function ActivityPlayer({
     const answered = answers[qi];
     const reveal = phase === "answering" && answered != null;
     return (
-      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+      <Shell onExit={onExit} backLabel={t("action.back")} speed={speed} setSpeed={setSpeed}>
         <PhaseIndicator current="question" />
         <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
           <span className="text-base font-medium text-foreground">
@@ -404,7 +404,7 @@ export function ActivityPlayer({
   if (phase === "feedback") {
     const correct = answers[qi] === currentQ.answerIndex;
     return (
-      <Shell onExit={onExit} backLabel="Back" speed={speed} setSpeed={setSpeed}>
+      <Shell onExit={onExit} backLabel={t("action.back")} speed={speed} setSpeed={setSpeed}>
         <PhaseIndicator current="feedback" />
         <Card className="p-6 text-center">
           <motion.span
@@ -418,14 +418,14 @@ export function ActivityPlayer({
             {correct ? <Sparkles className="h-8 w-8" /> : <Check className="h-8 w-8" />}
           </motion.span>
           <h2 className="mt-4 font-serif text-2xl font-semibold text-foreground">
-            {correct ? "Well done!" : "That's okay. Let's try another one."}
+            {correct ? t("wellDone") : t("thatsOkay")}
           </h2>
           <p className="mt-2 rounded-xl bg-muted/60 p-4 text-base text-foreground">
             {currentQ.explanation}
           </p>
           <div className="mt-5 flex justify-center">
             <ListenButton
-              text={`${correct ? "Well done!" : "That's okay."} ${currentQ.explanation}`}
+              text={`${correct ? t("wellDone") : t("thatsOkay")} ${currentQ.explanation}`}
               lang={lang}
               speed={speed}
             />
@@ -450,11 +450,11 @@ export function ActivityPlayer({
   );
   const accuracy = questions.length ? correct / questions.length : 0;
   const headline =
-    accuracy >= 0.8 ? "Well done!" : accuracy >= 0.5 ? "Nice effort." : "That's okay. Let's try another one.";
+    accuracy >= 0.8 ? t("wellDone") : accuracy >= 0.5 ? t("niceEffort") : t("thatsOkay");
   const sub = `${correct} of ${questions.length} correct.`;
   const skillName = CATEGORY_META[activity.category]?.label ?? activity.category;
   return (
-    <Shell onExit={onExit} backLabel="Back to activities" speed={speed} setSpeed={setSpeed}>
+    <Shell onExit={onExit} backLabel={t("back.toActivities")} speed={speed} setSpeed={setSpeed}>
       <Card className="p-8 text-center">
         <motion.span
           initial={{ scale: 0.8, opacity: 0 }}
@@ -470,9 +470,9 @@ export function ActivityPlayer({
           Cognitive skill practiced: {skillName}
         </p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-          <Stat label="Accuracy" value={`${Math.round(accuracy * 100)}%`} />
-          <Stat label="Time" value={`${Math.round(responseMs / 1000)}s`} />
-          <Stat label="Score" value={String(Math.round(accuracy * 100))} />
+          <Stat label={t("accuracy")} value={`${Math.round(accuracy * 100)}%`} />
+          <Stat label={t("time")} value={`${Math.round(responseMs / 1000)}s`} />
+          <Stat label={t("score")} value={String(Math.round(accuracy * 100))} />
         </div>
         <div className="mt-4 flex justify-center">
           <ListenButton text={`${headline} ${sub}`} lang={lang} speed={speed} />
@@ -524,7 +524,7 @@ function PhaseIndicator({ current }: { current: Phase }) {
               }`}
             >
               {done && <Check className="h-3 w-3" />}
-              {s.label}
+              {t(s.labelKey)}
             </div>
             {i < PHASE_STEPS.length - 1 && (
               <span className={`h-0.5 w-4 ${done ? "bg-emerald-300" : "bg-border"}`} />

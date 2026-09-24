@@ -124,7 +124,7 @@ export function SnakeGame({ onExit }: { onExit: () => void }) {
       profileId: profile?.id ?? "anon",
       activityId: "snake-game",
       category: "concentration",
-      title: "Snake Game",
+      title: t("game.startGame"),
       difficulty,
       accuracy,
       responseMs: 0,
@@ -171,7 +171,7 @@ export function SnakeGame({ onExit }: { onExit: () => void }) {
             <Badge className="bg-emerald-100 text-emerald-700">Apples: {applesEaten}</Badge>
             <Button size="sm" variant="outline" onClick={() => setPhase(phase === "paused" ? "playing" : "paused")}>
               {phase === "paused" ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-              {phase === "paused" ? "Play" : "Pause"}
+              {phase === "paused" ? "▶" : "⏸"}
             </Button>
           </div>
         </div>

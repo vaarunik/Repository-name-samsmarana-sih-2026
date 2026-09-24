@@ -123,7 +123,7 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
       profileId: profile?.id ?? "anon",
       activityId: "puzzle-games",
       category: "problem_solving",
-      title: "Puzzle Games",
+      title: t("elder.cognitiveActivities"),
       difficulty,
       accuracy,
       responseMs: 0,
@@ -377,7 +377,7 @@ export function PuzzleGamePlayer({ onExit }: { onExit: () => void }) {
         <p className="mt-2 text-sm font-medium text-emerald-700">Cognitive skill practiced: Visual Problem Solving</p>
         <div className="mt-6 grid grid-cols-3 gap-3 text-center">
           <Stat label={t("accuracy")} value={`${Math.round(accuracy * 100)}%`} />
-          <Stat label="Puzzles" value={String(answers.length)} />
+          <Stat label="score" value={String(answers.length)} />
           <Stat label={t("score")} value={String(Math.round(accuracy * 100))} />
         </div>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
@@ -407,7 +407,7 @@ function Shell({ children, onExit, speed, setSpeed }: { children: React.ReactNod
     <main className="flex-1">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
         <div className="mb-3 flex items-center justify-between">
-          <BackButton label="Back to activities" onClick={onExit} />
+          <BackButton label="back.toActivities" onClick={onExit} />
           <VoiceSpeedControl speed={speed} setSpeed={setSpeed} />
         </div>
         <div className="mt-2">{children}</div>
